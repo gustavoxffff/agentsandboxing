@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+PROJECT="$(realpath "${1:-$PWD}")"
+
+args=(
+  # --- sistema base (somente leitura) ---
+  --ro-bind /usr /usr
+  --ro-bind /etc /etc
+  --symlink usr/bin /bin
+  --symlink usr/sbin /sbin
+  --symlink usr/lib /lib
+  --symlink usr/lib64 /lib64
+  --proc /proc
+  --dev /dev
+  --tmpfs /tmp
+  --tmpfs /run
+
+  # --- HOME vazio (tmpfs) ---
+  --tmpfs "$HOME"
+
+  # --- projeto (leitura e escrita) ---
+  --bind "$PROJECT" "$PROJECT"
+
+  # --- config/estado do opencode (leitura e escrita) ---
+  --bind "$HOME/.config/opencode"      "$HOME/.config/opencode"
+  --bind "$HOME/.local/share/opencode" "$HOME/.local/share/opencode"
+  --bind "$HOME/.local/state/opencode" "$HOME/.local/state/opencode"
+  --bind "$HOME/.cache/opencode"       "$HOME/.cache/opencode"
+
+  # --- binário do opencode e toolchains (somente leitura) ---
+  # --ro-bind "$HOME/.opencode" "$HOME/.opencode"
+
+  # --- git (somente leitura, sem SSH) ---
+  --ro-bind "$HOME/.gitconfig" "$HOME/.gitconfig"
+
+  # --- isolamento ---
+  --unshare-pid
+  --unshare-ipc
+  --unshare-uts
+  --unshare-cgroup
+  --die-with-parent
+  --new-session        # bloqueia injeção via TIOCSTI no terminal
+
+  # --- ambiente ---
+  --setenv HOME "$HOME"
+  --chdir "$PROJECT"
+)
+
+exec bwrap "${args[@]}" opencode "$@"
