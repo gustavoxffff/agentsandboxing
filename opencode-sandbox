@@ -1,50 +1,24 @@
 #!/usr/bin/env bash
+# Wrapper de compatibilidade: executa o asb, nunca o comportamento antigo.
 set -euo pipefail
 
-PROJECT="$(realpath "${1:-$PWD}")"
+if ! command -v asb >/dev/null 2>&1; then
+  echo "opencode-sandbox: asb não encontrado no PATH." >&2
+  echo "Instale com: go install github.com/gustavoxffff/agentsandboxing/cmd/asb@latest" >&2
+  echo "Não há fallback para o script antigo." >&2
+  exit 127
+fi
 
-args=(
-  # --- sistema base (somente leitura) ---
-  --ro-bind /usr /usr
-  --ro-bind /etc /etc
-  --symlink usr/bin /bin
-  --symlink usr/sbin /sbin
-  --symlink usr/lib /lib
-  --symlink usr/lib64 /lib64
-  --proc /proc
-  --dev /dev
-  --tmpfs /tmp
-  --tmpfs /run
+PROJECT="${PWD}"
+if [ "$#" -gt 0 ] && [ -d "${1}" ]; then
+  PROJECT="$(realpath "${1}")"
+  shift
+fi
 
-  # --- HOME vazio (tmpfs) ---
-  --tmpfs "$HOME"
+args=(run -C "$PROJECT")
+if [ ! -f "$PROJECT/asb.toml" ]; then
+  echo "opencode-sandbox: aviso: sem asb.toml em $PROJECT; usando --profile host (comportamento legado)" >&2
+  args+=(--profile host)
+fi
 
-  # --- projeto (leitura e escrita) ---
-  --bind "$PROJECT" "$PROJECT"
-
-  # --- config/estado do opencode (leitura e escrita) ---
-  --bind "$HOME/.config/opencode"      "$HOME/.config/opencode"
-  --bind "$HOME/.local/share/opencode" "$HOME/.local/share/opencode"
-  --bind "$HOME/.local/state/opencode" "$HOME/.local/state/opencode"
-  --bind "$HOME/.cache/opencode"       "$HOME/.cache/opencode"
-
-  # --- binário do opencode e toolchains (somente leitura) ---
-  # --ro-bind "$HOME/.opencode" "$HOME/.opencode"
-
-  # --- git (somente leitura, sem SSH) ---
-  --ro-bind "$HOME/.gitconfig" "$HOME/.gitconfig"
-
-  # --- isolamento ---
-  --unshare-pid
-  --unshare-ipc
-  --unshare-uts
-  --unshare-cgroup
-  --die-with-parent
-  --new-session        # bloqueia injeção via TIOCSTI no terminal
-
-  # --- ambiente ---
-  --setenv HOME "$HOME"
-  --chdir "$PROJECT"
-)
-
-exec bwrap "${args[@]}" opencode "$@"
+exec asb "${args[@]}" -- opencode --standalone "$@"

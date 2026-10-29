@@ -1,0 +1,21 @@
+# Configuração do próprio repositório (dogfood da v1).
+# Precedência: flag de CLI > este arquivo > $XDG_CONFIG_HOME/asb/config.toml.
+version = 1
+
+[network]
+# host | none | allowlist
+profile = "host"
+
+# A allowlist só vale com profile = "allowlist". Destinos são nomes de host;
+# "*." casa subdomínios, não o apex.
+# allow = [
+#   "github.com",
+#   "registry.npmjs.org",
+#   "pypi.org",
+#   "files.pythonhosted.org",
+# ]
+
+[env]
+# A lista base da v1 é PATH, TERM, LANG, LC_ALL, TZ, USER, LOGNAME, SHELL.
+# Declarar [env] allow substitui a lista (não faz merge).
+# allow = ["PATH", "TERM", "LANG", "LC_ALL", "TZ", "USER", "LOGNAME", "SHELL"]
