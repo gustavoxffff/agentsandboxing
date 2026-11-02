@@ -48,3 +48,7 @@ ASB=/tmp/asb scripts/matrix.sh
 Documentação completa: [docs/asb.md](docs/asb.md). Decisão e escopo:
 [ADR-0001](docs/adr/0001-sandbox-opencode-com-bwrap.md) e
 [RFC-0001](docs/rfc/0001-sandbox-configuravel-para-agentes.md).
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the workflow, [AGENTS.md](AGENTS.md) for agent instructions, and [docs/README.md](docs/README.md) for the documentation index. Code style lives in [docs/code-style.md](docs/code-style.md).
