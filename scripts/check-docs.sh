@@ -8,14 +8,6 @@ fail=0
 links=0
 files=0
 
-is_legacy() {
-  case "$1" in
-    ./docs/adr/0001-*|./docs/adr/0002-*|./docs/adr/0003-*|./docs/adr/0004-*) return 0 ;;
-    ./docs/rfc/0001-*) return 0 ;;
-  esac
-  return 1
-}
-
 check_links() {
   local file="$1"
   local dir target
@@ -47,10 +39,6 @@ check_metadata() {
   case "$base" in
     TEMPLATE.md) return 0 ;;
   esac
-  if is_legacy "$file"; then
-    return 0
-  fi
-
   case "$file" in
     ./docs/adr/*|./docs/rfc/*) ;;
     *) return 0 ;;

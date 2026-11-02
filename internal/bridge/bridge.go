@@ -1,5 +1,5 @@
-// Package bridge expõe o socket Unix do proxy como um proxy HTTP em
-// 127.0.0.1 dentro do namespace de rede isolado do sandbox.
+// Package bridge exposes the proxy Unix socket as an HTTP proxy on 127.0.0.1
+// inside the sandbox isolated network namespace.
 package bridge
 
 import (
@@ -17,11 +17,11 @@ import (
 
 const dialTimeout = 10 * time.Second
 
-// Run sobe a bridge em uma porta efêmera e executa o comando filho com as
-// variáveis de proxy apontando para ela.
+// Run starts the bridge on an ephemeral port and runs the child command with
+// the proxy variables pointing to it.
 func Run(socket string, command []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 	if len(command) == 0 {
-		return 0, errors.New("bridge: comando vazio")
+		return 0, errors.New("bridge: empty command")
 	}
 	l, err := net.Listen("tcp4", "127.0.0.1:0")
 	if err != nil {
@@ -30,16 +30,16 @@ func Run(socket string, command []string, stdin io.Reader, stdout, stderr io.Wri
 	return Serve(l, socket, command, stdin, stdout, stderr)
 }
 
-// Serve é Run com um listener injetável (usado nos testes).
+// Serve is Run with an injectable listener (used in tests).
 func Serve(l net.Listener, socket string, command []string, stdin io.Reader, stdout, stderr io.Writer) (int, error) {
 	if len(command) == 0 {
 		_ = l.Close()
-		return 0, errors.New("bridge: comando vazio")
+		return 0, errors.New("bridge: empty command")
 	}
 	addr, ok := l.Addr().(*net.TCPAddr)
 	if !ok {
 		_ = l.Close()
-		return 0, fmt.Errorf("bridge: listener não é TCP: %s", l.Addr())
+		return 0, fmt.Errorf("bridge: listener is not TCP: %s", l.Addr())
 	}
 	port := addr.Port
 
@@ -51,7 +51,7 @@ func Serve(l net.Listener, socket string, command []string, stdin io.Reader, std
 	cmd.SysProcAttr = &syscall.SysProcAttr{Pdeathsig: syscall.SIGTERM}
 	if err := cmd.Start(); err != nil {
 		_ = l.Close()
-		return 0, fmt.Errorf("bridge: iniciar %s: %w", command[0], err)
+		return 0, fmt.Errorf("bridge: start %s: %w", command[0], err)
 	}
 
 	stop := make(chan struct{})
@@ -79,7 +79,7 @@ func Serve(l net.Listener, socket string, command []string, stdin io.Reader, std
 	if errors.As(err, &exitErr) {
 		return exitErr.ExitCode(), nil
 	}
-	return 1, fmt.Errorf("bridge: esperar comando: %w", err)
+	return 1, fmt.Errorf("bridge: wait for command: %w", err)
 }
 
 func acceptLoop(l net.Listener, socket string, stop <-chan struct{}) {
@@ -127,8 +127,8 @@ func closeWrite(c net.Conn) {
 	}
 }
 
-// WithProxyEnv devolve env com as variáveis de proxy da bridge substituindo
-// qualquer valor herdado. NODE_USE_ENV_PROXY cobre toolchains Node.
+// WithProxyEnv returns env with the bridge proxy variables replacing any
+// inherited value. NODE_USE_ENV_PROXY covers Node toolchains.
 func WithProxyEnv(env []string, port int) []string {
 	proxyURL := fmt.Sprintf("http://127.0.0.1:%d", port)
 	noProxy := "localhost,127.0.0.1,::1"

@@ -1,4 +1,4 @@
-// Comando asb: sandbox de agentes com política de rede declarativa.
+// Command asb: agent sandbox with a declarative network policy.
 package main
 
 import (
@@ -54,35 +54,35 @@ func cli(args []string) int {
 		return 0
 	default:
 		if strings.HasPrefix(args[0], "-") {
-			// Permite `asb --print-config` e `asb --profile none -- cmd`.
+			// Allows `asb --print-config` and `asb --profile none -- cmd`.
 			return runCmd(args, false)
 		}
-		fmt.Fprintf(os.Stderr, "asb: comando desconhecido: %s\n\n", args[0])
+		fmt.Fprintf(os.Stderr, "asb: unknown command: %s\n\n", args[0])
 		usage(os.Stderr)
 		return 2
 	}
 }
 
 func usage(w io.Writer) {
-	fmt.Fprint(w, `asb — sandbox de agentes com política de rede
+	fmt.Fprint(w, `asb — agent sandbox with declarative network policy
 
-Uso:
-  asb run [flags] [--] [comando...]
+Usage:
+  asb run [flags] [--] [command...]
   asb print-config [flags]
   asb init --profile host|none|allowlist [flags]
   asb doctor
   asb version
 
-Flags de run:
-  -C, --project DIR     raiz do projeto (default: diretório atual)
-      --profile P       host | none | allowlist (sobrescreve asb.toml)
-      --allow HOST      destino permitido; repetível; substitui a lista
-      --env-allow VAR   variável de ambiente permitida; repetível; substitui
-      --sandbox-id ID   sobrescreve o id derivado do projeto
-      --print-config    imprime a config resolvida e não executa
+Flags for run:
+  -C, --project DIR     project root (default: current directory)
+      --profile P       host | none | allowlist (overrides asb.toml)
+      --allow HOST      allowed destination; repeatable; replaces the list
+      --env-allow VAR   allowed environment variable; repeatable; replaces the list
+      --sandbox-id ID   overrides the id derived from the project
+      --print-config    prints the resolved config and does not run
 
-Precedência: flag > asb.toml do projeto > config global > nenhum default.
-Sem perfil configurado o asb falha pedindo uma escolha explícita.
+Precedence: flag > project asb.toml > global config > no default.
+Without a configured profile, asb fails asking for an explicit choice.
 `)
 }
 
@@ -110,13 +110,13 @@ func runCmd(args []string, forcePrint bool) int {
 	var project, profile, sandboxID string
 	var allow, envAllow listFlag
 	var printCfg bool
-	fs.StringVar(&project, "C", ".", "raiz do projeto")
-	fs.StringVar(&project, "project", ".", "raiz do projeto")
-	fs.StringVar(&profile, "profile", "", "perfil de rede")
-	fs.Var(&allow, "allow", "destino permitido (repetível)")
-	fs.Var(&envAllow, "env-allow", "variável permitida (repetível)")
-	fs.StringVar(&sandboxID, "sandbox-id", "", "id do sandbox")
-	fs.BoolVar(&printCfg, "print-config", false, "imprime a config e sai")
+	fs.StringVar(&project, "C", ".", "project root")
+	fs.StringVar(&project, "project", ".", "project root")
+	fs.StringVar(&profile, "profile", "", "network profile")
+	fs.Var(&allow, "allow", "allowed destination (repeatable)")
+	fs.Var(&envAllow, "env-allow", "allowed variable (repeatable)")
+	fs.StringVar(&sandboxID, "sandbox-id", "", "sandbox id")
+	fs.BoolVar(&printCfg, "print-config", false, "prints the config and exits")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -148,11 +148,11 @@ func runCmd(args []string, forcePrint bool) int {
 	})
 	if err != nil {
 		if errors.Is(err, config.ErrNoProfile) {
-			fmt.Fprintln(os.Stderr, "asb: nenhum perfil de rede configurado.")
-			fmt.Fprintln(os.Stderr, "Escolha explicitamente em asb.toml:")
+			fmt.Fprintln(os.Stderr, "asb: no network profile configured.")
+			fmt.Fprintln(os.Stderr, "Choose explicitly in asb.toml:")
 			fmt.Fprintln(os.Stderr, "  [network]")
 			fmt.Fprintln(os.Stderr, "  profile = \"host\" | \"none\" | \"allowlist\"")
-			fmt.Fprintln(os.Stderr, "ou use --profile. Para criar o arquivo: asb init --profile none")
+			fmt.Fprintln(os.Stderr, "or use --profile. To create the file: asb init --profile none")
 			return 2
 		}
 		fmt.Fprintf(os.Stderr, "asb: %v\n", err)
@@ -167,16 +167,16 @@ func initCmd(args []string) int {
 	var project, profile string
 	var allow listFlag
 	var force bool
-	fs.StringVar(&project, "C", ".", "raiz do projeto")
-	fs.StringVar(&project, "project", ".", "raiz do projeto")
-	fs.StringVar(&profile, "profile", "", "perfil de rede (obrigatório)")
-	fs.Var(&allow, "allow", "destino permitido (repetível)")
-	fs.BoolVar(&force, "force", false, "sobrescrever asb.toml existente")
+	fs.StringVar(&project, "C", ".", "project root")
+	fs.StringVar(&project, "project", ".", "project root")
+	fs.StringVar(&profile, "profile", "", "network profile (required)")
+	fs.Var(&allow, "allow", "allowed destination (repeatable)")
+	fs.BoolVar(&force, "force", false, "overwrite an existing asb.toml")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 	if profile == "" {
-		fmt.Fprintln(os.Stderr, "asb init: --profile é obrigatório (host, none ou allowlist)")
+		fmt.Fprintln(os.Stderr, "asb init: --profile is required (host, none or allowlist)")
 		return 2
 	}
 	if err := config.ValidateProfile(config.Profile(profile)); err != nil {
@@ -184,7 +184,7 @@ func initCmd(args []string) int {
 		return 2
 	}
 	if profile != string(config.ProfileAllowlist) && allow.set {
-		fmt.Fprintln(os.Stderr, "asb init: --allow só é válido com --profile allowlist")
+		fmt.Fprintln(os.Stderr, "asb init: --allow is only valid with --profile allowlist")
 		return 2
 	}
 	normalized := make([]string, 0, len(allow.values))
@@ -204,12 +204,12 @@ func initCmd(args []string) int {
 	}
 	path := filepath.Join(abs, "asb.toml")
 	if _, err := os.Stat(path); err == nil && !force {
-		fmt.Fprintf(os.Stderr, "asb init: %s já existe (use --force para sobrescrever)\n", path)
+		fmt.Fprintf(os.Stderr, "asb init: %s already exists (use --force to overwrite)\n", path)
 		return 2
 	}
 
 	var b strings.Builder
-	b.WriteString("# Configuração do asb (versionada). Precedência: CLI > projeto > global.\n")
+	b.WriteString("# asb configuration (versioned). Precedence: CLI > project > global.\n")
 	b.WriteString("version = 1\n\n[network]\n")
 	fmt.Fprintf(&b, "profile = %q\n", profile)
 	if len(normalized) > 0 {
@@ -219,13 +219,13 @@ func initCmd(args []string) int {
 		}
 		b.WriteString("]\n")
 	}
-	b.WriteString("\n# Variáveis herdadas do host. HOME e proxy são definidos pela ferramenta.\n")
+	b.WriteString("\n# Variables inherited from the host. HOME and proxy are set by the tool.\n")
 	b.WriteString("# [env]\n# allow = [\"PATH\", \"TERM\", \"LANG\"]\n")
 	if err := os.WriteFile(path, []byte(b.String()), 0o644); err != nil {
 		fmt.Fprintf(os.Stderr, "asb init: %v\n", err)
 		return 1
 	}
-	fmt.Printf("asb: criado %s (perfil %s)\n", path, profile)
+	fmt.Printf("asb: created %s (profile %s)\n", path, profile)
 	return 0
 }
 
@@ -233,8 +233,8 @@ func doctorCmd(args []string) int {
 	fs := flag.NewFlagSet("doctor", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	var project string
-	fs.StringVar(&project, "C", ".", "raiz do projeto")
-	fs.StringVar(&project, "project", ".", "raiz do projeto")
+	fs.StringVar(&project, "C", ".", "project root")
+	fs.StringVar(&project, "project", ".", "project root")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -244,36 +244,36 @@ func doctorCmd(args []string) int {
 	for _, check := range checks {
 		status := "ok"
 		if !check.OK {
-			status = "FALHA"
+			status = "FAIL"
 			ok = false
 		}
 		fmt.Printf("[%-5s] %-16s %s\n", status, check.Name, check.Detail)
 	}
 	if err != nil {
-		fmt.Printf("[FALHA] %v\n", err)
+		fmt.Printf("[FAIL ] %v\n", err)
 		ok = false
 	}
 	for _, name := range []string{"opencode", "git"} {
 		if path, err := exec.LookPath(name); err == nil {
 			fmt.Printf("[ok   ] %-16s %s\n", name, path)
 		} else {
-			fmt.Printf("[aviso] %-16s não encontrado\n", name)
+			fmt.Printf("[warn ] %-16s not found\n", name)
 		}
 	}
 	if global, err := config.GlobalPath(); err == nil {
-		fmt.Printf("[info ] %-16s %s\n", "config global", global)
+		fmt.Printf("[info ] %-16s %s\n", "global config", global)
 	}
 	resolv := sandbox.ResolvDestination()
 	if data, err := os.ReadFile(resolv); err == nil && strings.Contains(string(data), "nameserver") {
 		fmt.Printf("[ok   ] %-16s %s\n", "resolv.conf", resolv)
 	} else {
-		fmt.Printf("[aviso] %-16s sem nameserver legível em %s (WSL? veja docs/asb.md)\n", "resolv.conf", resolv)
+		fmt.Printf("[warn ] %-16s no readable nameserver in %s (WSL? see docs/asb.md)\n", "resolv.conf", resolv)
 	}
 	abs, _ := filepath.Abs(project)
 	if _, err := os.Stat(filepath.Join(abs, "asb.toml")); err == nil {
 		fmt.Printf("[info ] %-16s %s\n", "asb.toml", filepath.Join(abs, "asb.toml"))
 	} else {
-		fmt.Printf("[aviso] %-16s ausente em %s\n", "asb.toml", abs)
+		fmt.Printf("[warn ] %-16s missing in %s\n", "asb.toml", abs)
 	}
 	if !ok {
 		return 1
@@ -288,15 +288,15 @@ func proxyCmd(args []string) int {
 	var allow listFlag
 	var readyFD int
 	var verbose bool
-	fs.StringVar(&socket, "socket", "", "caminho do socket Unix")
-	fs.Var(&allow, "allow", "host permitido (repetível)")
-	fs.IntVar(&readyFD, "ready-fd", -1, "fd para sinalizar readiness")
-	fs.BoolVar(&verbose, "verbose", false, "registrar conexões permitidas")
+	fs.StringVar(&socket, "socket", "", "Unix socket path")
+	fs.Var(&allow, "allow", "allowed host (repeatable)")
+	fs.IntVar(&readyFD, "ready-fd", -1, "fd used to signal readiness")
+	fs.BoolVar(&verbose, "verbose", false, "log allowed connections")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 	if socket == "" {
-		fmt.Fprintln(os.Stderr, "asb proxy: --socket é obrigatório")
+		fmt.Fprintln(os.Stderr, "asb proxy: --socket is required")
 		return 2
 	}
 	if err := os.MkdirAll(filepath.Dir(socket), 0o700); err != nil {
@@ -355,17 +355,17 @@ func bridgeCmd(args []string) int {
 	fs := flag.NewFlagSet("bridge", flag.ContinueOnError)
 	fs.SetOutput(os.Stderr)
 	var socket string
-	fs.StringVar(&socket, "socket", "", "caminho do socket Unix do proxy")
+	fs.StringVar(&socket, "socket", "", "proxy Unix socket path")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 	if socket == "" {
-		fmt.Fprintln(os.Stderr, "asb bridge: --socket é obrigatório")
+		fmt.Fprintln(os.Stderr, "asb bridge: --socket is required")
 		return 2
 	}
 	command := fs.Args()
 	if len(command) == 0 {
-		fmt.Fprintln(os.Stderr, "asb bridge: comando ausente (use -- comando...)")
+		fmt.Fprintln(os.Stderr, "asb bridge: missing command (use -- command...)")
 		return 2
 	}
 	code, err := bridge.Run(socket, command, os.Stdin, os.Stdout, os.Stderr)

@@ -1,5 +1,5 @@
-// Package proxy implementa o proxy CONNECT da v1: allowlist por hostname,
-// DNS resolvido no host, somente IPv4, sem MITM e sem fallback para rede.
+// Package proxy implements the v1 CONNECT proxy: allowlist by hostname,
+// DNS resolved on the host, IPv4 only, no MITM and no fallback to the network.
 package proxy
 
 import (
@@ -21,18 +21,17 @@ const (
 	maxHeaderSize = 64 << 10
 )
 
-// Proxy é o proxy HTTP/CONNECT. Ele só fala com destinos permitidos.
+// Proxy is the HTTP/CONNECT proxy. It only talks to allowed destinations.
 type Proxy struct {
 	Allow    []string
 	Resolver Resolver
 	Dialer   *net.Dialer
 	Logger   *log.Logger
-	// Verbose registra também as conexões permitidas; negações são sempre
-	// registradas.
+	// Verbose also logs allowed connections; denials are always logged.
 	Verbose bool
 }
 
-// Serve aceita conexões até o listener ser fechado.
+// Serve accepts connections until the listener is closed.
 func (p *Proxy) Serve(l net.Listener) error {
 	for {
 		conn, err := l.Accept()
@@ -57,7 +56,7 @@ func (p *Proxy) handle(client net.Conn) {
 	br := bufio.NewReaderSize(client, maxHeaderSize)
 	req, err := http.ReadRequest(br)
 	if err != nil {
-		p.writeError(client, http.StatusBadRequest, "requisição inválida")
+		p.writeError(client, http.StatusBadRequest, "invalid request")
 		return
 	}
 	defer req.Body.Close()
@@ -93,7 +92,7 @@ func (p *Proxy) handle(client net.Conn) {
 	upstream, err := p.dialAny(dialCtx, ips, port)
 	cancelDial()
 	if err != nil {
-		p.deny(client, host, "falha ao conectar: "+err.Error())
+		p.deny(client, host, "failed to connect: "+err.Error())
 		return
 	}
 	defer upstream.Close()
@@ -122,11 +121,11 @@ func requestTarget(req *http.Request) (host, port string, err error) {
 		}
 		host, port, err = net.SplitHostPort(target)
 		if err != nil {
-			return "", "", fmt.Errorf("CONNECT exige host:porta: %q", target)
+			return "", "", fmt.Errorf("CONNECT requires host:port: %q", target)
 		}
 	} else {
 		if req.URL == nil || req.URL.Host == "" {
-			return "", "", errors.New("proxy exige URL absoluta")
+			return "", "", errors.New("proxy requires an absolute URL")
 		}
 		host = req.URL.Hostname()
 		port = req.URL.Port()
@@ -135,11 +134,11 @@ func requestTarget(req *http.Request) (host, port string, err error) {
 		}
 	}
 	if host == "" {
-		return "", "", errors.New("destino vazio")
+		return "", "", errors.New("empty destination")
 	}
 	n, err := strconv.Atoi(port)
 	if err != nil || n < 1 || n > 65535 {
-		return "", "", fmt.Errorf("porta inválida: %q", port)
+		return "", "", fmt.Errorf("invalid port: %q", port)
 	}
 	return host, port, nil
 }
@@ -159,7 +158,7 @@ func (p *Proxy) dialAny(ctx context.Context, ips []net.IP, port string) (net.Con
 		lastErr = err
 	}
 	if lastErr == nil {
-		lastErr = errors.New("nenhum endereço para discar")
+		lastErr = errors.New("no address to dial")
 	}
 	return nil, lastErr
 }
@@ -174,7 +173,7 @@ func (p *Proxy) forward(client net.Conn, req *http.Request, upstream net.Conn) {
 
 	_ = upstream.SetDeadline(time.Now().Add(headerTimeout))
 	if err := req.Write(upstream); err != nil {
-		p.writeError(client, http.StatusBadGateway, "falha ao enviar ao destino")
+		p.writeError(client, http.StatusBadGateway, "failed to send to the destination")
 		return
 	}
 	_ = upstream.SetDeadline(time.Time{})
@@ -217,7 +216,7 @@ func closeWrite(c net.Conn) {
 
 func (p *Proxy) deny(conn net.Conn, host, reason string) {
 	p.logf("DENY %s %s", host, reason)
-	p.writeError(conn, http.StatusForbidden, "bloqueado pela allowlist do asb")
+	p.writeError(conn, http.StatusForbidden, "blocked by the asb allowlist")
 }
 
 func (p *Proxy) writeError(conn net.Conn, status int, message string) {

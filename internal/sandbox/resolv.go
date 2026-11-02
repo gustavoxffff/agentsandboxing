@@ -9,11 +9,11 @@ import (
 	"github.com/gustavoxffff/agentsandboxing/internal/config"
 )
 
-// ResolvContent gera o /etc/resolv.conf do sandbox.
+// ResolvContent generates the sandbox /etc/resolv.conf.
 //
-// host: reaproveita os nameservers do host (necessário para ferramentas que
-// resolvem DNS diretamente). none/allowlist: aponta para loopback, onde não há
-// listener; DNS direto falha e, no allowlist, a resolução acontece no proxy.
+// host: reuses the host nameservers (needed for tools that resolve DNS
+// directly). none/allowlist: points to loopback, where there is no listener;
+// direct DNS fails and, in allowlist, resolution happens in the proxy.
 func ResolvContent(profile config.Profile) string {
 	if profile == config.ProfileHost {
 		if content := hostNameservers(); content != "" {
@@ -42,22 +42,22 @@ func hostNameservers() string {
 	return strings.Join(lines, "\n")
 }
 
-// ResolvFile materializa o conteúdo em um arquivo temporário aberto. O
-// chamador passa o arquivo como fd 3 para o bwrap (--file 3 DEST).
+// ResolvFile materializes the content in an open temporary file. The caller
+// passes the file as fd 3 to bwrap (--file 3 DEST).
 func ResolvFile(content string) (*os.File, error) {
 	f, err := os.CreateTemp("", "asb-resolv-*")
 	if err != nil {
-		return nil, fmt.Errorf("criar resolv.conf temporário: %w", err)
+		return nil, fmt.Errorf("create temporary resolv.conf: %w", err)
 	}
-	// O fd continua válido depois do unlink.
+	// The fd stays valid after the unlink.
 	_ = os.Remove(f.Name())
 	if _, err := f.WriteString(content); err != nil {
 		f.Close()
-		return nil, fmt.Errorf("escrever resolv.conf temporário: %w", err)
+		return nil, fmt.Errorf("write temporary resolv.conf: %w", err)
 	}
 	if _, err := f.Seek(0, 0); err != nil {
 		f.Close()
-		return nil, fmt.Errorf("rebobinar resolv.conf temporário: %w", err)
+		return nil, fmt.Errorf("rewind temporary resolv.conf: %w", err)
 	}
 	return f, nil
 }

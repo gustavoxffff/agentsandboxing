@@ -21,22 +21,22 @@ jobs:
       - name: Check docs
         run: ./scripts/check-docs.sh
 
-      - name: Testes unitários
+      - name: Unit tests
         run: go test ./...
 
       - name: Vet
         run: go vet ./...
 
-      - name: Dependências da matriz
+      - name: Matrix dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y bubblewrap curl git nodejs npm python3-pip
 
-      - name: Habilitar user namespaces para o bwrap
+      - name: Enable user namespaces for bwrap
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
 
       - name: Build
         run: go build -o /tmp/asb ./cmd/asb
 
-      - name: Matriz de fuga (gate do allowlist)
+      - name: Network escape matrix (allowlist gate)
         run: ASB=/tmp/asb scripts/matrix.sh

@@ -1,4 +1,4 @@
-// Package sandbox calcula o layout por sandbox e monta os argumentos do bwrap.
+// Package sandbox computes the per-sandbox layout and builds the bwrap arguments.
 package sandbox
 
 import (
@@ -10,13 +10,13 @@ import (
 	"strings"
 )
 
-// Layout descreve os caminhos de estado e de runtime de um sandbox.
+// Layout describes the state and runtime paths of a sandbox.
 //
-// O estado persistente fica no host em
+// Persistent state lives on the host at
 // $XDG_STATE_HOME/asb/sandboxes/<id>/opencode/{config,data,state,cache}.
-// Dentro do sandbox o mesmo diretório é montado em
-// $HOME/.local/state/asb/sandboxes/<id>, e as variáveis XDG apontam para os
-// subdiretórios. Nada do estado global do OpenCode do host é montado.
+// Inside the sandbox the same directory is mounted at
+// $HOME/.local/state/asb/sandboxes/<id>, and the XDG variables point to the
+// subdirectories. Nothing from the host global OpenCode state is mounted.
 type Layout struct {
 	ID string
 
@@ -28,7 +28,7 @@ type Layout struct {
 	ProxyDir         string
 	ProxySocket      string
 
-	// Sandbox (caminhos absolutos dentro do bwrap)
+	// Sandbox (absolute paths inside bwrap)
 	InsideRoot       string
 	InsideConfigHome string
 	InsideDataHome   string
@@ -40,15 +40,16 @@ type Layout struct {
 	InsideBinary     string
 }
 
-// NewLayout calcula o layout. sandboxID vazio usa o id derivado do projeto.
+// NewLayout computes the layout. An empty sandboxID uses the id derived from
+// the project.
 func NewLayout(projectDir, sandboxID string) (Layout, error) {
 	home, err := os.UserHomeDir()
 	if err != nil {
-		return Layout{}, fmt.Errorf("descobrir HOME: %w", err)
+		return Layout{}, fmt.Errorf("discover HOME: %w", err)
 	}
 	home = filepath.Clean(home)
 	if !filepath.IsAbs(home) || home == "/" || home == "." {
-		return Layout{}, fmt.Errorf("HOME inválido: %q", home)
+		return Layout{}, fmt.Errorf("invalid HOME: %q", home)
 	}
 
 	id := sandboxID
@@ -73,12 +74,12 @@ func NewLayout(projectDir, sandboxID string) (Layout, error) {
 	proxyDir := filepath.Join(runtimeBase, "asb", shortHash(id))
 	proxySocket := filepath.Join(proxyDir, "proxy.sock")
 	if len(proxySocket) > 100 {
-		// sun_path do Linux tem ~108 bytes; cai para /tmp se o XDG for longo.
+		// Linux sun_path is ~108 bytes; fall back to /tmp if XDG is long.
 		proxyDir = filepath.Join(os.TempDir(), fmt.Sprintf("asb-%d", os.Getuid()), shortHash(id))
 		proxySocket = filepath.Join(proxyDir, "proxy.sock")
 	}
 	if len(proxySocket) > 100 {
-		return Layout{}, fmt.Errorf("caminho do socket do proxy longo demais: %s", proxySocket)
+		return Layout{}, fmt.Errorf("proxy socket path too long: %s", proxySocket)
 	}
 
 	return Layout{
@@ -100,7 +101,7 @@ func NewLayout(projectDir, sandboxID string) (Layout, error) {
 	}, nil
 }
 
-// DefaultID devolve <basename-do-projeto>-<sha256(caminho)[0:8]>.
+// DefaultID returns <project-basename>-<sha256(path)[0:8]>.
 func DefaultID(projectDir string) string {
 	abs, err := filepath.Abs(projectDir)
 	if err != nil {
@@ -136,7 +137,7 @@ func sanitize(s string) string {
 	return out
 }
 
-// CreateDirs cria o estado persistente e o diretório privado do socket.
+// CreateDirs creates the persistent state and the private socket directory.
 func (l Layout) CreateDirs() error {
 	for _, dir := range []string{
 		l.HostRoot,
@@ -147,28 +148,28 @@ func (l Layout) CreateDirs() error {
 		filepath.Join(l.HostOpencodeRoot, "cache"),
 	} {
 		if err := os.MkdirAll(dir, 0o700); err != nil {
-			return fmt.Errorf("criar estado do sandbox: %w", err)
+			return fmt.Errorf("create sandbox state: %w", err)
 		}
-		// O estado pode conter credenciais; não confie no umask ou em modo
-		// preexistente.
+		// The state may contain credentials; do not trust umask or a
+		// preexisting mode.
 		if err := os.Chmod(dir, 0o700); err != nil {
-			return fmt.Errorf("ajustar permissões do estado: %w", err)
+			return fmt.Errorf("adjust state permissions: %w", err)
 		}
 	}
 	if err := os.MkdirAll(l.ProxyDir, 0o700); err != nil {
-		return fmt.Errorf("criar diretório do proxy: %w", err)
+		return fmt.Errorf("create proxy directory: %w", err)
 	}
-	// Garante 0700 mesmo se o diretório já existia com outro modo.
+	// Ensures 0700 even if the directory already existed with another mode.
 	if err := os.Chmod(l.ProxyDir, 0o700); err != nil {
-		return fmt.Errorf("ajustar permissões do proxy: %w", err)
+		return fmt.Errorf("adjust proxy permissions: %w", err)
 	}
 	return nil
 }
 
-// RemoveStaleSocket remove um socket de uma execução anterior.
+// RemoveStaleSocket removes a socket from a previous run.
 func (l Layout) RemoveStaleSocket() error {
 	if err := os.Remove(l.ProxySocket); err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("remover socket antigo: %w", err)
+		return fmt.Errorf("remove stale socket: %w", err)
 	}
 	return nil
 }

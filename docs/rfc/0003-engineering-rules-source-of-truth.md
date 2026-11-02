@@ -18,7 +18,7 @@ The repository's engineering rules are scattered across `README.md`, `docs/asb.m
 
 | Location | What it owns | Problem |
 |---|---|---|
-| `README.md` | Install, quick start, profile guarantees, test commands | Mixes onboarding, product description, and rules; in Portuguese |
+| `README.md` | Install, quick start, profile guarantees, test commands | Mixes onboarding, product description, and rules; was Portuguese until 2026-11-02 |
 | `docs/asb.md` | Product reference: config, network, commands, escape matrix, limitations | Product specification, not engineering rules |
 | `docs/adr/` | Decisions and consequences | Decisions are not discoverable as day-to-day rules |
 | `docs/rfc/` | Proposals and open questions | Proposals are not rules |
@@ -36,7 +36,7 @@ The repository's engineering rules are scattered across `README.md`, `docs/asb.m
 
 ### 2.3 Language
 
-ADR-0006 requires English for new and updated documentation. Existing `README.md`, `docs/asb.md`, ADR-0001..0004, and RFC-0001 are in Portuguese. This initiative creates new English artifacts and does not translate existing ones; translation belongs to the dedicated migration change.
+ADR-0006 requires English for new and updated documentation. Existing `README.md`, `docs/asb.md`, ADR-0001..0004, and RFC-0001 were in Portuguese; the dedicated migration change landed on 2026-11-02. This initiative creates new English artifacts and does not translate existing ones itself.
 
 ### 2.4 If nothing changes
 

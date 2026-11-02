@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Wrapper de compatibilidade: executa o asb, nunca o comportamento antigo.
+# Compatibility wrapper: runs asb, never the old behavior.
 set -euo pipefail
 
 if ! command -v asb >/dev/null 2>&1; then
-  echo "opencode-sandbox: asb não encontrado no PATH." >&2
-  echo "Instale com: go install github.com/gustavoxffff/agentsandboxing/cmd/asb@latest" >&2
-  echo "Não há fallback para o script antigo." >&2
+  echo "opencode-sandbox: asb not found in PATH." >&2
+  echo "Install with: go install github.com/gustavoxffff/agentsandboxing/cmd/asb@latest" >&2
+  echo "There is no fallback to the old script." >&2
   exit 127
 fi
 
@@ -17,7 +17,7 @@ fi
 
 args=(run -C "$PROJECT")
 if [ ! -f "$PROJECT/asb.toml" ]; then
-  echo "opencode-sandbox: aviso: sem asb.toml em $PROJECT; usando --profile host (comportamento legado)" >&2
+  echo "opencode-sandbox: warning: no asb.toml in $PROJECT; using --profile host (legacy behavior)" >&2
   args+=(--profile host)
 fi
 

@@ -15,7 +15,7 @@ func TestResolveNoProfile(t *testing.T) {
 
 	_, err := Resolve(project, Overrides{})
 	if !errors.Is(err, ErrNoProfile) {
-		t.Fatalf("esperava ErrNoProfile, veio %v", err)
+		t.Fatalf("expected ErrNoProfile, got %v", err)
 	}
 }
 
@@ -44,13 +44,13 @@ allow = ["LANG"]
 		t.Fatal(err)
 	}
 	if cfg.Profile != ProfileHost {
-		t.Fatalf("perfil = %q, esperava host", cfg.Profile)
+		t.Fatalf("profile = %q, expected host", cfg.Profile)
 	}
 	if got := strings.Join(cfg.EnvAllow, ","); got != "LANG" {
-		t.Fatalf("env.allow = %q, esperava LANG (substitui, não merge)", got)
+		t.Fatalf("env.allow = %q, expected LANG (replace, not merge)", got)
 	}
 	if cfg.ProjectPath == "" || cfg.GlobalPath == "" {
-		t.Fatalf("caminhos de config não preenchidos: %+v", cfg)
+		t.Fatalf("config paths not populated: %+v", cfg)
 	}
 }
 
@@ -70,7 +70,7 @@ profile = "host"
 		t.Fatal(err)
 	}
 	if cfg.Profile != ProfileNone {
-		t.Fatalf("perfil = %q", cfg.Profile)
+		t.Fatalf("profile = %q", cfg.Profile)
 	}
 	if got := strings.Join(cfg.EnvAllow, ","); got != "SHELL" {
 		t.Fatalf("env.allow = %q", got)
@@ -95,7 +95,7 @@ allow = []
 		t.Fatal(err)
 	}
 	if cfg.EnvAllow == nil || len(cfg.EnvAllow) != 0 {
-		t.Fatalf("env.allow explícito vazio deveria ser preservado, veio %#v", cfg.EnvAllow)
+		t.Fatalf("explicit empty env.allow should be preserved, got %#v", cfg.EnvAllow)
 	}
 }
 
@@ -105,12 +105,12 @@ func TestConfigValidation(t *testing.T) {
 		content string
 		want    string
 	}{
-		{"sem versão", "[network]\nprofile = \"host\"\n", "version = 1"},
-		{"versão errada", "version = 2\n[network]\nprofile = \"host\"\n", "não suportada"},
-		{"chave desconhecida", "version = 1\n[network]\nprofile = \"host\"\nfoo = 1\n", "desconhecidas"},
-		{"perfil inválido", "version = 1\n[network]\nprofile = \"internet\"\n", "inválido"},
-		{"allow sem allowlist", "version = 1\n[network]\nprofile = \"host\"\nallow = [\"github.com\"]\n", "só é válido"},
-		{"ip na allowlist", "version = 1\n[network]\nprofile = \"allowlist\"\nallow = [\"1.1.1.1\"]\n", "IP direto"},
+		{"missing version", "[network]\nprofile = \"host\"\n", "version = 1"},
+		{"wrong version", "version = 2\n[network]\nprofile = \"host\"\n", "unsupported"},
+		{"unknown key", "version = 1\n[network]\nprofile = \"host\"\nfoo = 1\n", "unknown keys"},
+		{"invalid profile", "version = 1\n[network]\nprofile = \"internet\"\n", "invalid"},
+		{"allow without allowlist", "version = 1\n[network]\nprofile = \"host\"\nallow = [\"github.com\"]\n", "only valid"},
+		{"ip in allowlist", "version = 1\n[network]\nprofile = \"allowlist\"\nallow = [\"1.1.1.1\"]\n", "direct IP"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -119,7 +119,7 @@ func TestConfigValidation(t *testing.T) {
 			write(t, filepath.Join(project, "asb.toml"), tt.content)
 			_, err := Resolve(project, Overrides{})
 			if err == nil || !strings.Contains(err.Error(), tt.want) {
-				t.Fatalf("erro = %v, esperava conter %q", err, tt.want)
+				t.Fatalf("error = %v, expected to contain %q", err, tt.want)
 			}
 		})
 	}
@@ -138,26 +138,26 @@ func TestNormalizeHost(t *testing.T) {
 			t.Fatalf("%q: %v", in, err)
 		}
 		if got != want {
-			t.Fatalf("%q => %q, esperava %q", in, got, want)
+			t.Fatalf("%q => %q, expected %q", in, got, want)
 		}
 	}
 	for _, in := range []string{"", "1.1.1.1", "http://github.com", "github.com/path", "bad host", "*.", "a..b"} {
 		if _, err := NormalizeHost(in); err == nil {
-			t.Fatalf("%q deveria falhar", in)
+			t.Fatalf("%q should fail", in)
 		}
 	}
 }
 
 func TestEnvFile(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
-		t.Skip("git ausente")
+		t.Skip("git not found")
 	}
 	project := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
 	runGit(t, project, "init", "-q")
 	write(t, filepath.Join(project, ".gitignore"), ".asb.env\n")
 	envPath := filepath.Join(project, ".asb.env")
-	writeMode(t, envPath, "FOO=bar\n# comentário\nBAZ=com espaço\n", 0o600)
+	writeMode(t, envPath, "FOO=bar\n# comment\nBAZ=with space\n", 0o600)
 	write(t, filepath.Join(project, "asb.toml"), `
 version = 1
 [network]
@@ -171,23 +171,23 @@ from_file = ".asb.env"
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.FromFileVars["FOO"] != "bar" || cfg.FromFileVars["BAZ"] != "com espaço" {
-		t.Fatalf("variáveis do from_file: %#v", cfg.FromFileVars)
+	if cfg.FromFileVars["FOO"] != "bar" || cfg.FromFileVars["BAZ"] != "with space" {
+		t.Fatalf("from_file variables: %#v", cfg.FromFileVars)
 	}
 
 	if err := os.Chmod(envPath, 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := Resolve(project, Overrides{}); err == nil || !strings.Contains(err.Error(), "0600") {
-		t.Fatalf("esperava erro de permissão 0600, veio %v", err)
+		t.Fatalf("expected permission 0600 error, got %v", err)
 	}
 
 	if err := os.Chmod(envPath, 0o600); err != nil {
 		t.Fatal(err)
 	}
-	write(t, filepath.Join(project, ".gitignore"), "outro\n")
+	write(t, filepath.Join(project, ".gitignore"), "other\n")
 	if _, err := Resolve(project, Overrides{}); err == nil || !strings.Contains(err.Error(), ".gitignore") {
-		t.Fatalf("esperava erro de .gitignore, veio %v", err)
+		t.Fatalf("expected .gitignore error, got %v", err)
 	}
 }
 
@@ -215,10 +215,10 @@ allow = ["PATH", "HOME", "HTTP_PROXY", "GITHUB_TOKEN"]
 	})
 	joined := strings.Join(env, "\n")
 	if !strings.Contains(joined, "PATH=/usr/bin") || !strings.Contains(joined, "GITHUB_TOKEN=secret") {
-		t.Fatalf("env esperado não encontrado: %v", env)
+		t.Fatalf("expected env entry not found: %v", env)
 	}
 	if strings.Contains(joined, "HOME=") || strings.Contains(joined, "HTTP_PROXY=") {
-		t.Fatalf("HOME/proxy não deveriam ser herdados: %v", env)
+		t.Fatalf("HOME/proxy should not be inherited: %v", env)
 	}
 }
 
@@ -230,7 +230,7 @@ func TestValidateSandboxID(t *testing.T) {
 	}
 	for _, id := range []string{"", ".", "..", "../x", "a/b", ".hidden", "a b"} {
 		if err := ValidateSandboxID(id); err == nil {
-			t.Fatalf("%q deveria falhar", id)
+			t.Fatalf("%q should fail", id)
 		}
 	}
 }

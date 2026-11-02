@@ -1,35 +1,38 @@
-# asb — referência da v1
+# asb — v1 reference
 
-`asb` executa um comando (por default `opencode --standalone`) dentro de um
-sandbox `bwrap`, com política de rede explícita, ambiente fechado e estado do
-OpenCode por sandbox.
+`asb` runs a command (by default `opencode --standalone`) inside a `bwrap`
+sandbox, with an explicit network policy, a closed environment, and OpenCode
+state per sandbox.
 
-- **Escopo:** Linux e WSL; backend único `bwrap`; binário Go; sem daemon.
-- **Fora da v1:** macOS, container/Podman, skills, hooks, `auth export/import`,
-  modo efêmero, limites de CPU/memória e proxy transparente.
-- **Modelo de ameaça:** dano acidental e prompt injection em repositórios
-  próprios. Não é contenção de atacante sofisticado contra o kernel/host.
+- **Scope:** Linux and WSL; single `bwrap` backend; Go binary; no daemon.
+- **Out of v1:** macOS, container/Podman, skills, hooks, `auth export/import`,
+  ephemeral mode, CPU/memory limits, and transparent proxy.
+- **Threat model:** accidental damage and prompt injection in your own
+  repositories. It is not containment of a sophisticated attacker against the
+  kernel/host.
 
 ## Status (2026-10-29)
 
-Fases 1 e 2 implementadas: CLI/config, perfis `host`/`none`, XDG por sandbox,
-`--clearenv`/`--standalone`, proxy/bridge do `allowlist` e wrapper. A matriz
-local passou em `bwrap 0.13.1`/WSL (curl, git, Node, metadata, rebinding, QUIC,
-IP direto, tun/mknod/caps). npm/pip não estavam instalados no host local e
-ficaram cobertos pelo CI, que instala as toolchains e roda a mesma matriz.
-**O `allowlist` permanece condicionado ao CI verde** (gate do RFC-0001 §5.3).
+Phases 1 and 2 are implemented: CLI/config, `host`/`none` profiles, XDG per
+sandbox, `--clearenv`/`--standalone`, the `allowlist` proxy/bridge, and the
+wrapper. The local matrix passed on `bwrap 0.13.1`/WSL (curl, git, Node,
+metadata, rebinding, QUIC, direct IP, tun/mknod/caps). npm/pip were not
+installed on the local host and were covered by CI, which installs the
+toolchains and runs the same matrix.
+**`allowlist` remains conditioned on green CI** (the RFC-0001 §5.3 gate).
 
-## Configuração
+## Configuration
 
-Config global: `$XDG_CONFIG_HOME/asb/config.toml` (default
-`~/.config/asb/config.toml`). Config do projeto: `asb.toml` na raiz.
+Global config: `$XDG_CONFIG_HOME/asb/config.toml` (default
+`~/.config/asb/config.toml`). Project config: `asb.toml` at the repository
+root.
 
 ```toml
 version = 1
 
 [network]
 profile = "allowlist"   # host | none | allowlist
-allow = [               # só com profile = "allowlist"
+allow = [               # only with profile = "allowlist"
   "github.com",
   "*.githubusercontent.com",
   "registry.npmjs.org",
@@ -39,105 +42,106 @@ allow = [               # só com profile = "allowlist"
 
 [env]
 allow = ["PATH", "TERM", "LANG", "LC_ALL", "TZ", "USER", "LOGNAME", "SHELL"]
-from_file = ".asb.env"  # opcional, 0600, no .gitignore
+from_file = ".asb.env"  # optional, 0600, in .gitignore
 ```
 
-Precedência: **flag de CLI > `asb.toml` > config global > nenhum default**.
-Listas (`network.allow`, `env.allow`) **substituem**, não fazem merge. Sem
-perfil em nenhum nível, o `asb` falha.
+Precedence: **CLI flag > `asb.toml` > global config > no default**.
+Lists (`network.allow`, `env.allow`) **replace**, they do not merge. With no
+profile at any level, `asb` fails.
 
-- `network.allow` aceita nome exato (`github.com`) ou wildcard de subdomínio
-  (`*.example.com`, que não casa o apex). IP direto é rejeitado.
-- `deny_private` não é configurável: IP privado, loopback, link-local,
-  metadata e IPv6 são sempre negados no `allowlist`.
-- A allowlist base de env é `PATH`, `TERM`, `LANG`, `LC_ALL`, `TZ`, `USER`,
-  `LOGNAME`, `SHELL`. `HOME`, `TMPDIR` e variáveis de proxy são definidas pela
-  ferramenta e não podem ser herdadas.
-- `env.from_file`: uma `VAR=valor` por linha, `#` para comentário, permissão
-  `0600`, dentro do projeto e coberto pelo `.gitignore`. Valores nunca são
-  impressos.
+- `network.allow` accepts an exact name (`github.com`) or a subdomain wildcard
+  (`*.example.com`, which does not match the apex). Direct IPs are rejected.
+- `deny_private` is not configurable: private IPs, loopback, link-local,
+  metadata, and IPv6 are always denied in `allowlist`.
+- The base env allowlist is `PATH`, `TERM`, `LANG`, `LC_ALL`, `TZ`, `USER`,
+  `LOGNAME`, `SHELL`. `HOME`, `TMPDIR`, and proxy variables are defined by the
+  tool and cannot be inherited.
+- `env.from_file`: one `VAR=value` per line, `#` for comments, permission
+  `0600`, inside the project and covered by `.gitignore`. Values are never
+  printed.
 
-## Estado e ambiente
+## State and environment
 
-- `HOME` é um `tmpfs` efêmero.
-- Estado persistente por sandbox:
+- `HOME` is an ephemeral `tmpfs`.
+- Persistent state per sandbox:
   `$XDG_STATE_HOME/asb/sandboxes/<id>/opencode/{config,data,state,cache}`.
-- Dentro do sandbox o mesmo estado aparece em
+- Inside the sandbox the same state appears at
   `$HOME/.local/state/asb/sandboxes/<id>`; `XDG_CONFIG_HOME`, `XDG_DATA_HOME`,
-  `XDG_STATE_HOME`, `XDG_CACHE_HOME` e `XDG_RUNTIME_DIR` apontam para lá.
-- `<id>` = `<basename-do-projeto>-<sha256(caminho-absoluto)[0:8]>`;
-  `--sandbox-id` sobrescreve.
-- Nenhum bind gravável de `~/.config/opencode`, `~/.local/share/opencode`,
-  `~/.local/state/opencode`, `~/.cache/opencode` ou `opencode.db`.
-- O login do provider é feito uma vez por sandbox (o estado é persistente).
-- O projeto é montado em leitura/escrita; `/usr`, `/etc`, `/bin`, `/sbin`,
-  `/lib`, `/lib64` e `~/.gitconfig` (se existir) em somente leitura.
-- `--clearenv` no `bwrap`: só as variáveis declaradas entram.
+  `XDG_STATE_HOME`, `XDG_CACHE_HOME`, and `XDG_RUNTIME_DIR` point there.
+- `<id>` = `<project-basename>-<sha256(absolute-path)[0:8]>`;
+  `--sandbox-id` overrides it.
+- No writable bind of `~/.config/opencode`, `~/.local/share/opencode`,
+  `~/.local/state/opencode`, `~/.cache/opencode`, or `opencode.db`.
+- The provider login is done once per sandbox (state is persistent).
+- The project is mounted read/write; `/usr`, `/etc`, `/bin`, `/sbin`, `/lib`,
+  `/lib64`, and `~/.gitconfig` (if it exists) are read-only.
+- `--clearenv` in `bwrap`: only declared variables enter.
 
-## Rede
+## Network
 
 ### `host`
 
-Compartilha o namespace de rede do host. Sem restrição de rede; use para
-tarefas confiáveis e compatibilidade total.
+Shares the host network namespace. No network restriction; use it for trusted
+tasks and full compatibility.
 
 ### `none`
 
-`--unshare-net`: só loopback. DNS direto falha; não há rota externa.
+`--unshare-net`: loopback only. Direct DNS fails; there is no external route.
 
 ### `allowlist`
 
-`--unshare-net` + proxy HTTP/CONNECT no host, acessível por socket Unix
-privado. Dentro do sandbox, `asb bridge` expõe o socket como um proxy em
-`127.0.0.1:<porta efêmera>` e define `HTTP_PROXY`, `HTTPS_PROXY`, `ALL_PROXY`,
-`NO_PROXY=localhost,127.0.0.1,::1` e `NODE_USE_ENV_PROXY=1`.
+`--unshare-net` + an HTTP/CONNECT proxy on the host, reachable through a
+private Unix socket. Inside the sandbox, `asb bridge` exposes the socket as a
+proxy at `127.0.0.1:<ephemeral-port>` and sets `HTTP_PROXY`, `HTTPS_PROXY`,
+`ALL_PROXY`, `NO_PROXY=localhost,127.0.0.1,::1`, and `NODE_USE_ENV_PROXY=1`.
 
-- O proxy resolve **apenas IPv4** e falha fechado para host AAAA-only.
-- O IP resolvido é o IP discado (sem re-resolução): mitiga DNS rebinding.
-- Se qualquer resposta DNS for privada/link-local/loopback/metadata, o host é
-  negado.
-- O proxy filtra por **hostname** (CONNECT), não por path. Não há MITM.
-  Qualquer domínio permitido é um canal de saída; mantenha a lista mínima.
-- QUIC/UDP e IPv6 não têm rota no namespace isolado. Ferramentas precisam
-  respeitar `HTTP(S)_PROXY`; Node precisa de `NODE_USE_ENV_PROXY=1`, já
-  definido pela bridge.
-- O socket fica em diretório `0700`, o socket em `0600`, e ambos são montados
-  read-only no sandbox. O binário da bridge também é montado read-only.
-- `/dev/net/tun` não existe; `mknod` é negado; capabilities efetivas ficam
-  vazias. `unshare -Urn` aninhado é permitido, mas sem device/tun não cria
-  egress.
+- The proxy resolves **IPv4 only** and fails closed for AAAA-only hosts.
+- The resolved IP is the IP dialed (no re-resolution): this mitigates DNS
+  rebinding.
+- If any DNS answer is private/link-local/loopback/metadata, the host is
+  denied.
+- The proxy filters by **hostname** (CONNECT), not by path. There is no MITM.
+  Any allowed domain is an egress channel; keep the list minimal.
+- QUIC/UDP and IPv6 have no route in the isolated namespace. Tools must respect
+  `HTTP(S)_PROXY`; Node needs `NODE_USE_ENV_PROXY=1`, already set by the bridge.
+- The socket lives in a `0700` directory, the socket is `0600`, and both are
+  mounted read-only in the sandbox. The bridge binary is also mounted
+  read-only.
+- `/dev/net/tun` does not exist; `mknod` is denied; effective capabilities are
+  empty. Nested `unshare -Urn` is allowed, but without a device/tun it creates
+  no egress.
 
-**Gate:** `allowlist` só é anunciado como pronto quando a matriz automatizada
-(§ Matriz) passar em CI. Até lá, o dogfood usa `host`/`none`.
+**Gate:** `allowlist` is announced as ready only when the automated matrix
+(§ Matrix) passes in CI. Until then, dogfood uses `host`/`none`.
 
-## Comandos
+## Commands
 
 ```sh
-asb run [flags] [--] [comando...]
+asb run [flags] [--] [command...]
 asb print-config [flags]
 asb init --profile host|none|allowlist [--allow HOST] [--force]
 asb doctor
-asb proxy --socket PATH --allow HOST [--verbose]   # interno
-asb bridge --socket PATH -- comando...             # interno
+asb proxy --socket PATH --allow HOST [--verbose]   # internal
+asb bridge --socket PATH -- command...             # internal
 asb version
 ```
 
-Flags de `run`/`print-config`: `-C/--project`, `--profile`, `--allow`,
+`run`/`print-config` flags: `-C/--project`, `--profile`, `--allow`,
 `--env-allow`, `--sandbox-id`, `--print-config`.
 
-A config resolvida é impressa no stderr antes de executar (e no stdout com
-`--print-config`), inclusive quando o preflight falha. O startup é medido e
-impresso em `asb: startup <ms>`.
+The resolved config is printed to stderr before execution (and to stdout with
+`--print-config`), including when preflight fails. Startup is measured and
+printed as `asb: startup <ms>`.
 
-## Matriz de fuga
+## Escape matrix
 
-`scripts/matrix.sh` executa a matriz com o binário `asb`:
+`scripts/matrix.sh` runs the matrix with the `asb` binary:
 
-- `none`: sem rota, DNS direto falha, curl externo falha, `/dev/net/tun`
-  ausente, `mknod` negado, `CapBnd=0`.
-- `allowlist`: domínio permitido 200; domínio negado 403; metadata 403; IP
-  direto 403; QUIC falha; npm/pip (quando instalados) passam pelo proxy.
-- `host`: domínio externo 200.
+- `none`: no route, direct DNS fails, external curl fails, `/dev/net/tun`
+  absent, `mknod` denied, `CapBnd=0`.
+- `allowlist`: allowed domain 200; denied domain 403; metadata 403; direct IP
+  403; QUIC fails; npm/pip (when installed) pass through the proxy.
+- `host`: external domain 200.
 
 ```sh
 go build -o /tmp/asb ./cmd/asb
@@ -146,37 +150,38 @@ ASB=/tmp/asb scripts/matrix.sh
 
 ## Troubleshooting
 
-**`bwrap` ausente ou user namespaces desabilitados.** Rode `asb doctor`. O
-`asb` falha antes de executar com mensagem clara. Em kernels que restringem
-user namespaces, habilite `kernel.unprivileged_userns_clone=1` ou instale
-`bwrap` setuid conforme a documentação da distro.
+**`bwrap` missing or user namespaces disabled.** Run `asb doctor`. `asb` fails
+before executing with a clear message. On kernels that restrict user
+namespaces, enable `kernel.unprivileged_userns_clone=1` or install setuid
+`bwrap` according to your distribution's documentation.
 
-**DNS no WSL.** O `asb` resolve o alvo real do symlink de `/etc/resolv.conf`
-(ex.: `/mnt/wsl/resolv.conf`) e monta um arquivo gerado sobre ele; não monta
-sobre o symlink. No `none`/`allowlist`, o `resolv.conf` aponta para loopback e
-DNS direto falha de propósito.
+**DNS on WSL.** `asb` resolves the real target of the `/etc/resolv.conf` symlink
+(for example `/mnt/wsl/resolv.conf`) and mounts a generated file over it; it
+does not mount over the symlink. In `none`/`allowlist`, `resolv.conf` points to
+loopback and direct DNS fails on purpose.
 
-**Ferramenta ignora o proxy.** No `allowlist`, ela não terá rede. Use
-`NODE_USE_ENV_PROXY=1` para Node; `curl`, `git`, `pip` e `npm` honram as
-variáveis. Proxy transparente está fora da v1.
+**Tool ignores the proxy.** In `allowlist`, it has no network. Use
+`NODE_USE_ENV_PROXY=1` for Node; `curl`, `git`, `pip`, and `npm` honor the
+variables. Transparent proxy is out of v1.
 
-**Variável de ambiente sumiu.** É `--clearenv`. Declare em `[env] allow` ou
-`env.from_file`. `*_TOKEN`/`*_KEY` não são herdados por default.
+**An environment variable disappeared.** That is `--clearenv`. Declare it in
+`[env] allow` or `env.from_file`. `*_TOKEN`/`*_KEY` are not inherited by
+default.
 
-**Quero ver as conexões.** `ASB_PROXY_LOG=1 asb run ...` registra também as
-permitidas; negações são sempre registradas.
+**I want to see the connections.** `ASB_PROXY_LOG=1 asb run ...` also logs
+allowed connections; denials are always logged.
 
-**Preciso do comportamento antigo.** Restaure `opencode-sandbox` do commit
-`8d97c44`. O wrapper novo não cai silenciosamente para o script antigo.
+**I need the old behavior.** Restore `opencode-sandbox` from commit
+`8d97c44`. The new wrapper does not silently fall back to the old script.
 
-## Limitações conhecidas
+## Known limitations
 
-- Sem limites de CPU/memória e sem seccomp/AppArmor específico.
-- Sem mounts configuráveis: ferramentas instaladas fora de `/usr`, `/bin`,
-  `/sbin`, `/lib`, `/lib64` e do projeto não aparecem (binário do comando sob
-  `$HOME` é remontado read-only).
-- A allowlist é por hostname, não por conteúdo: um domínio permitido pode
-  exfiltrar dados.
-- Credenciais ficam no estado persistente do sandbox e são legíveis pelo
-  agente (necessário para o provider); o que se elimina é o acesso ao estado
-  global do host.
+- No CPU/memory limits and no specific seccomp/AppArmor profile.
+- No configurable mounts: tools installed outside `/usr`, `/bin`, `/sbin`,
+  `/lib`, `/lib64`, and the project do not appear (the command binary under
+  `$HOME` is remounted read-only).
+- The allowlist is by hostname, not by content: an allowed domain can exfiltrate
+  data.
+- Credentials live in the sandbox's persistent state and are readable by the
+  agent (required for the provider); what is removed is access to the host's
+  global state.

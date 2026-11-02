@@ -89,24 +89,24 @@ func TestBuildArgsNone(t *testing.T) {
 	layout, args := build(t, config.ProfileNone)
 	for _, want := range []string{"--unshare-net", "--clearenv", "--unshare-pid", "--die-with-parent", "--new-session"} {
 		if !contains(args, want) {
-			t.Fatalf("faltou %s em %v", want, args)
+			t.Fatalf("missing %s in %v", want, args)
 		}
 	}
 	if !containsSetenv(args, "XDG_CONFIG_HOME", layout.InsideConfigHome) {
-		t.Fatalf("XDG_CONFIG_HOME não aponta para o sandbox: %v", args)
+		t.Fatalf("XDG_CONFIG_HOME does not point to the sandbox: %v", args)
 	}
 	if contains(args, "bridge") {
-		t.Fatalf("perfil none não deveria usar bridge: %v", args)
+		t.Fatalf("profile none should not use bridge: %v", args)
 	}
 }
 
 func TestBuildArgsHost(t *testing.T) {
 	_, args := build(t, config.ProfileHost)
 	if contains(args, "--unshare-net") {
-		t.Fatalf("perfil host não deveria isolar rede: %v", args)
+		t.Fatalf("profile host should not isolate the network: %v", args)
 	}
 	if !contains(args, "--clearenv") {
-		t.Fatalf("perfil host deveria limpar ambiente: %v", args)
+		t.Fatalf("profile host should clear the environment: %v", args)
 	}
 }
 
@@ -114,14 +114,14 @@ func TestBuildArgsAllowlist(t *testing.T) {
 	layout, args := build(t, config.ProfileAllowlist)
 	for _, want := range []string{"--unshare-net", "bridge", "--socket", "/run/asb/proxy/proxy.sock"} {
 		if !contains(args, want) {
-			t.Fatalf("faltou %s em %v", want, args)
+			t.Fatalf("missing %s in %v", want, args)
 		}
 	}
 	if !containsPair(args, "--ro-bind", "/usr/bin/asb") {
-		t.Fatalf("binário asb não montado read-only: %v", args)
+		t.Fatalf("asb binary not mounted read-only: %v", args)
 	}
 	if !containsPair(args, "--ro-bind", layout.ProxyDir) {
-		t.Fatalf("diretório do proxy não montado read-only: %v", args)
+		t.Fatalf("proxy directory not mounted read-only: %v", args)
 	}
 }
 
@@ -138,7 +138,7 @@ func TestBuildArgsNeverMountsGlobalOpencodeState(t *testing.T) {
 	joined := strings.Join(args, "\n")
 	for _, path := range forbidden {
 		if strings.Contains(joined, path) {
-			t.Fatalf("estado global montado: %s\n%s", path, joined)
+			t.Fatalf("global state mounted: %s\n%s", path, joined)
 		}
 	}
 }
@@ -147,13 +147,13 @@ func TestDefaultID(t *testing.T) {
 	a := DefaultID("/tmp/proj")
 	b := DefaultID("/tmp/proj")
 	if a != b {
-		t.Fatalf("id não determinístico: %s != %s", a, b)
+		t.Fatalf("non-deterministic id: %s != %s", a, b)
 	}
 	if !strings.HasPrefix(a, "proj-") || len(a) != len("proj-")+8 {
-		t.Fatalf("id inesperado: %s", a)
+		t.Fatalf("unexpected id: %s", a)
 	}
-	if got := DefaultID("/tmp/meu projeto!"); !strings.HasPrefix(got, "meu-projeto-") {
-		t.Fatalf("sanitização inesperada: %s", got)
+	if got := DefaultID("/tmp/my project!"); !strings.HasPrefix(got, "my-project-") {
+		t.Fatalf("unexpected sanitization: %s", got)
 	}
 }
 
@@ -168,13 +168,13 @@ func TestNewLayoutUsesXDGStateHome(t *testing.T) {
 	}
 	want := filepath.Join(state, "asb", "sandboxes", layout.ID)
 	if layout.HostRoot != want {
-		t.Fatalf("HostRoot = %s, esperava %s", layout.HostRoot, want)
+		t.Fatalf("HostRoot = %s, expected %s", layout.HostRoot, want)
 	}
 	if !strings.HasPrefix(layout.InsideRoot, layout.Home) {
-		t.Fatalf("InsideRoot fora do HOME: %s", layout.InsideRoot)
+		t.Fatalf("InsideRoot outside HOME: %s", layout.InsideRoot)
 	}
 	if len(layout.ProxySocket) > 100 {
-		t.Fatalf("socket longo demais: %s", layout.ProxySocket)
+		t.Fatalf("socket too long: %s", layout.ProxySocket)
 	}
 }
 
@@ -188,11 +188,11 @@ func TestCreateDirs(t *testing.T) {
 		t.Fatal(err)
 	}
 	if info.Mode().Perm() != 0o700 {
-		t.Fatalf("permissão do diretório do proxy = %04o", info.Mode().Perm())
+		t.Fatalf("proxy directory permission = %04o", info.Mode().Perm())
 	}
 	for _, dir := range []string{"config", "data", "state", "cache"} {
 		if info, err := os.Stat(filepath.Join(layout.HostOpencodeRoot, dir)); err != nil || !info.IsDir() {
-			t.Fatalf("diretório %s não criado: %v", dir, err)
+			t.Fatalf("directory %s not created: %v", dir, err)
 		}
 	}
 }

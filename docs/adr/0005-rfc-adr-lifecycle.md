@@ -4,11 +4,11 @@
 - **Date:** 2026-11-01
 - **Deciders:** Gustavo
 - **RFC:** [RFC-0002](../rfc/0002-engineering-process-baseline.md)
-- **Supersedes / Related:** [ADR-0001](0001-sandbox-opencode-com-bwrap.md), [ADR-0002](0002-estado-e-credenciais-por-sandbox.md), [ADR-0003](0003-skills-pinadas-e-snapshot.md), [ADR-0004](0004-hooks-de-quality-gate.md); retrofit: ADR-0002..0004 link to RFC-0001
+- **Supersedes / Related:** [ADR-0001](0001-sandbox-opencode-com-bwrap.md), [ADR-0002](0002-per-sandbox-state-and-credentials.md), [ADR-0003](0003-pinned-skills-and-snapshot.md), [ADR-0004](0004-quality-gate-hooks.md); retrofit: ADR-0002..0004 link to RFC-0001
 
 ## Context
 
-The repository currently uses RFCs and ADRs as two long-form copies of the same document. ADR-0001 is 216 lines and RFC-0001 is 429 lines; both repeat context, alternatives, risks, and open questions. ADR-0001 is `Proposta (em RFC)` and links RFC-0001; ADR-0002..0004 are `Proposta` without an RFC. The ADR became a design document and the RFC became a second design document, so neither has a single job.
+The repository currently uses RFCs and ADRs as two long-form copies of the same document. ADR-0001 is 216 lines and RFC-0001 is 429 lines; both repeat context, alternatives, risks, and open questions. ADR-0001 is `Proposed (in RFC)` and links RFC-0001; ADR-0002..0004 are `Proposed` without an RFC. The ADR became a design document and the RFC became a second design document, so neither has a single job.
 
 The desired split is: the RFC is where the problem, options, acceptance criteria, and open questions are debated; the ADR records the decision and its consequences after the debate. The repository has no templates, status transition rules, freeze rule, or supersession convention.
 

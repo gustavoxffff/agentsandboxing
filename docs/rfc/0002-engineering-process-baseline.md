@@ -6,7 +6,7 @@
 - **Date:** 2026-11-01
 - **Feedback deadline:** 2026-11-08
 - **Related ADRs:** [ADR-0005](../adr/0005-rfc-adr-lifecycle.md), [ADR-0006](../adr/0006-english-only-artifacts.md), [ADR-0007](../adr/0007-mandatory-mutation-and-regression-tests.md)
-- **Supersedes / Related:** [RFC-0001](0001-sandbox-configuravel-para-agentes.md), [ADR-0001](../adr/0001-sandbox-opencode-com-bwrap.md), [ADR-0002](../adr/0002-estado-e-credenciais-por-sandbox.md), [ADR-0003](../adr/0003-skills-pinadas-e-snapshot.md), [ADR-0004](../adr/0004-hooks-de-quality-gate.md)
+- **Supersedes / Related:** [RFC-0001](0001-configurable-sandbox-for-agents.md), [ADR-0001](../adr/0001-sandbox-opencode-com-bwrap.md), [ADR-0002](../adr/0002-per-sandbox-state-and-credentials.md), [ADR-0003](../adr/0003-pinned-skills-and-snapshot.md), [ADR-0004](../adr/0004-quality-gate-hooks.md)
 - **Origin:** draft ADRs produced from the grill of 2026-11-01. This RFC is bootstrapped from draft ADRs because the new workflow does not exist yet; after acceptance, new initiatives start with an RFC and produce ADRs at closure.
 
 ## 1. Summary
@@ -17,21 +17,21 @@ The repository's RFCs and ADRs currently duplicate each other: both contain cont
 
 ### 2.1 Duplication between RFCs and ADRs
 
-- ADR-0001 is 216 lines and RFC-0001 is 429 lines. Both repeat context, alternatives, risks, and open questions (ADR-0001 §"Alternativas consideradas", §"Consequências", §"Questões em aberto"; RFC-0001 §6, §7, §11).
-- ADR-0001 is `Proposta (em RFC)` and links RFC-0001. ADR-0002..0004 are `Proposta` and have no RFC.
+- ADR-0001 is 216 lines and RFC-0001 is 429 lines. Both repeat context, alternatives, risks, and open questions (ADR-0001 §"Alternatives considered", §"Consequences", §"Open questions"; RFC-0001 §6, §7, §11).
+- ADR-0001 is `Proposed (in RFC)` and links RFC-0001. ADR-0002..0004 are `Proposed` and had no RFC; the links were retrofitted on 2026-11-02 as part of the ADR-0006 migration.
 - There are no templates, status transition rules, freeze rule, or supersession convention in `docs/adr/` or `docs/rfc/`.
-- The RFC has a final decision (`RFC-0001` §5 "Proposta" and §8 "Plano"), so it is not a debate document; the ADR also contains the decision, so the two documents compete.
+- The RFC has a final decision (`RFC-0001` §5 "Proposal" and §8 "Migration and rollout plan"), so it is not a debate document; the ADR also contains the decision, so the two documents compete.
 
 ### 2.2 Drift that the current process did not catch
 
-- ADR-0001 says the `opencode-sandbox` wrapper and the legacy fallback were removed, and that there is no implicit `--profile host` (ADR-0001 §"Decisão" line 86; RFC-0001 §5.2 line 118). The wrapper still exists and adds `--profile host` when `asb.toml` is absent (`opencode-sandbox:19-21`).
-- ADR-0001 and RFC-0001 describe `asb exec` as the mechanism that delivers environment values by fd/file (ADR-0001 §"Decisão"; RFC-0001 §5.2 and §5.4). The CLI has no `exec` subcommand (`cmd/asb/main.go:37-52`).
+- ADR-0001 says the `opencode-sandbox` wrapper and the legacy fallback were removed, and that there is no implicit `--profile host` (ADR-0001 §"Decision" line 86; RFC-0001 §5.2 line 118). The wrapper still exists and adds `--profile host` when `asb.toml` is absent (`opencode-sandbox:19-21`).
+- ADR-0001 and RFC-0001 describe `asb exec` as the mechanism that delivers environment values by fd/file (ADR-0001 §"Decision"; RFC-0001 §5.2 and §5.4). The CLI has no `exec` subcommand (`cmd/asb/main.go:37-52`).
 - These are factual contradictions, not open design questions. They are evidence that a decision record without an explicit acceptance/freeze step does not stay aligned with the code.
 
 ### 2.3 Language
 
-- `README.md`, `docs/asb.md`, ADR-0001..0004, and RFC-0001 are in Portuguese.
-- CLI help and errors are in Portuguese (`cmd/asb/main.go:115`, `internal/config/config.go:49`, `internal/proxy/allow.go:23`), and tests assert Portuguese substrings.
+- `README.md`, `docs/asb.md`, ADR-0001..0004, and RFC-0001 were in Portuguese; the translation landed on 2026-11-02 under ADR-0006.
+- CLI help and errors were in Portuguese (`cmd/asb/main.go:115`, `internal/config/config.go:49`, `internal/proxy/allow.go:23`), and tests asserted Portuguese substrings; both were translated on 2026-11-02.
 - There is no localization requirement and no translated UI. The Go/OpenCode ecosystem and upstream documentation are in English.
 
 ### 2.4 Testing
@@ -43,7 +43,7 @@ The repository's RFCs and ADRs currently duplicate each other: both contain cont
 
 ### 2.5 If nothing changes
 
-The repository keeps two competing design documents, accepts decisions that the code contradicts, mixes Portuguese and English, and has no automated evidence that the test suite detects faults. The cost grows with every new ADR.
+The repository keeps two competing design documents, accepts decisions that the code contradicts, mixes Portuguese and English (until the dedicated translation landed on 2026-11-02), and has no automated evidence that the test suite detects faults. The cost grows with every new ADR.
 
 ## 3. Goals and non-goals
 
@@ -281,12 +281,12 @@ This RFC is accepted when all of the following are true:
 ## 13. References
 
 - [ADR-0005](../adr/0005-rfc-adr-lifecycle.md), [ADR-0006](../adr/0006-english-only-artifacts.md), [ADR-0007](../adr/0007-mandatory-mutation-and-regression-tests.md)
-- [ADR-0001](../adr/0001-sandbox-opencode-com-bwrap.md), [ADR-0002](../adr/0002-estado-e-credenciais-por-sandbox.md), [ADR-0003](../adr/0003-skills-pinadas-e-snapshot.md), [ADR-0004](../adr/0004-hooks-de-quality-gate.md)
-- [RFC-0001](0001-sandbox-configuravel-para-agentes.md)
+- [ADR-0001](../adr/0001-sandbox-opencode-com-bwrap.md), [ADR-0002](../adr/0002-per-sandbox-state-and-credentials.md), [ADR-0003](../adr/0003-pinned-skills-and-snapshot.md), [ADR-0004](../adr/0004-quality-gate-hooks.md)
+- [RFC-0001](0001-configurable-sandbox-for-agents.md)
 - `.github/workflows/ci.yml` — current CI (unit tests, vet, matrix)
 - `opencode-sandbox:19-21` — wrapper fallback to `--profile host`
 - `cmd/asb/main.go:37-52` — subcommands; no `exec`
-- `cmd/asb/main.go:115`, `internal/config/config.go:49`, `internal/proxy/allow.go:23` — Portuguese CLI/errors
+- `cmd/asb/main.go:115`, `internal/config/config.go:49`, `internal/proxy/allow.go:23` — Portuguese CLI/errors before the ADR-0006 migration
 - [Gremlins v0.6.0 release](https://github.com/go-gremlins/gremlins/releases/tag/v0.6.0) and [documentation](https://gremlins.dev)
 - [Gremlins issue #278](https://github.com/go-gremlins/gremlins/issues/278) — `--diff` mode can skip mutations when invoked with a subdirectory argument; the proposal runs from the module root.
 - Local baseline, 2026-11-01: `gremlins unleash --workers 4 --timeout-coefficient 3 --output /tmp/opencode/gremlins-baseline.json`; 312 mutants total: 199 runnable (150 killed, 47 lived, 2 timed out) and 113 not covered; efficacy 76.14%, mutant coverage 63.55%; ~29 s.

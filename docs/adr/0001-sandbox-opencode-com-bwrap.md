@@ -1,216 +1,216 @@
-# ADR-0001: CLI em Go para sandbox de agentes com política de rede e roteamento
+# ADR-0001: Go CLI for an agent sandbox with network policy and routing
 
-- **Status:** Proposta (em RFC)
-- **RFC:** [RFC-0001](../rfc/0001-sandbox-configuravel-para-agentes.md)
-- **Data:** 2026-10-27 (criação); 2026-10-29 (reescopo, grill e fechamento de pendências); 2026-11-01 (revisão do grill)
-- **Decisores:** Gustavo
-- **Substitui / Relacionadas:** reescopo da ADR-0001 original; [ADR-0002](0002-estado-e-credenciais-por-sandbox.md), [ADR-0003](0003-skills-pinadas-e-snapshot.md), [ADR-0004](0004-hooks-de-quality-gate.md)
+- **Status:** Proposed (in RFC)
+- **RFC:** [RFC-0001](../rfc/0001-configurable-sandbox-for-agents.md)
+- **Date:** 2026-10-27 (creation); 2026-10-29 (rescope, grill, and closure of pending items); 2026-11-01 (grill revision)
+- **Deciders:** Gustavo
+- **Supersedes / Related:** rescope of the original ADR-0001; [ADR-0002](0002-per-sandbox-state-and-credentials.md), [ADR-0003](0003-pinned-skills-and-snapshot.md), [ADR-0004](0004-quality-gate-hooks.md)
 
-## Contexto
+## Context
 
-O repositório nasceu como um script único, `opencode-sandbox`, que executa o OpenCode sob bubblewrap (`bwrap`) com um perfil fixo:
+The repository started as a single script, `opencode-sandbox`, which runs OpenCode under bubblewrap (`bwrap`) with a fixed profile:
 
-- `opencode-sandbox:22-68` monta os argumentos do `bwrap`.
-- `opencode-sandbox:38-45` mantém o projeto em leitura/escrita, usa `tmpfs` como `$HOME` e faz bind **gravável** de `~/.config/opencode`, `~/.local/share/opencode`, `~/.local/state/opencode` e `~/.cache/opencode`.
-- `opencode-sandbox:57-63` isola PID, IPC, UTS e cgroup, com `--die-with-parent` e `--new-session`.
-- `opencode-sandbox:6-20,53-55` gera um `resolv.conf` e o monta sobre o alvo real do symlink; **não** usa `--unshare-net`, portanto compartilha o namespace de rede do host.
-- `opencode-sandbox:70-75` usa `--standalone` para o servidor do OpenCode (que executa as ferramentas) subir dentro do sandbox, em vez de usar o serviço compartilhado do host.
+- `opencode-sandbox:22-68` builds the `bwrap` arguments.
+- `opencode-sandbox:38-45` keeps the project read/write, uses `tmpfs` as `$HOME`, and makes a **writable** bind of `~/.config/opencode`, `~/.local/share/opencode`, `~/.local/state/opencode`, and `~/.cache/opencode`.
+- `opencode-sandbox:57-63` isolates PID, IPC, UTS, and cgroup, with `--die-with-parent` and `--new-session`.
+- `opencode-sandbox:6-20,53-55` generates a `resolv.conf` and mounts it over the real symlink target; it does **not** use `--unshare-net`, so it shares the host network namespace.
+- `opencode-sandbox:70-75` uses `--standalone` so the OpenCode server (which runs the tools) starts inside the sandbox instead of using the shared host service.
 
-Não existe código da ferramenta, schema de configuração nem testes. O objetivo da v1 é **reescrever o script como um programa Go e tornar a política de rede explícita e configurável**.
+There is no tool code, configuration schema, or tests. The goal of v1 is to **rewrite the script as a Go program and make the network policy explicit and configurable**.
 
-**Modelo de ameaça:** escolhido pelo usuário. A recomendação forte é cobrir **dano acidental e prompt injection de agentes de LLM** em repositórios próprios; não é conter um atacante sofisticado que explore o kernel ou o próprio host. A ferramenta entrega mecanismos de controle e um caminho de inicialização sem default inseguro — não promete isolação além do que a política configurada permite.
+**Threat model:** chosen by the user. The strong recommendation is to cover **accidental damage and prompt injection from LLM agents** in your own repositories; it is not containment of a sophisticated attacker exploiting the kernel or the host itself. The tool provides control mechanisms and a startup path without an insecure default — it does not promise isolation beyond what the configured policy allows.
 
-**Escopo da v1 (esta ADR):** CLI em Go, perfis de rede/roteamento e o mínimo de isolamento de estado para não manter os binds graváveis do host: XDG por sandbox, `--clearenv`/env allowlist e `--standalone`. A importação de credenciais (`auth export/import`), o modo efêmero, a rotação e o ciclo de vida ficam na ADR-0002; skills e hooks nas ADR-0003/0004.
+**v1 scope (this ADR):** Go CLI, network/routing profiles, and the minimum state isolation needed to avoid keeping the host's writable binds: XDG per sandbox, `--clearenv`/env allowlist, and `--standalone`. Credential import (`auth export/import`), ephemeral mode, rotation, and lifecycle belong to ADR-0002; skills and hooks to ADR-0003/0004.
 
-Na revisão de 2026-11-01, o wrapper `opencode-sandbox` e o comportamento legado saem da v1; `env.allow`/`from_file` passam a usar fd/arquivo efêmero (não argv); o `~/.gitconfig` do host não é montado; e o gate do `allowlist` foi expandido no escopo para cobrir os critérios já listados nesta ADR (implementação pendente).
+In the 2026-11-01 revision, the `opencode-sandbox` wrapper and the legacy behavior leave v1; `env.allow`/`from_file` now use an fd/ephemeral file (not argv); the host `~/.gitconfig` is not mounted; and the `allowlist` gate was expanded in scope to cover the criteria already listed in this ADR (implementation pending).
 
-A v1 **não** monta `~/.config/opencode`, `~/.local/share/opencode`, `~/.local/state/opencode` nem `~/.cache/opencode`, e não monta o `opencode.db` do host. O login é feito uma vez por sandbox; importar credenciais do host é ADR-0002.
+v1 does **not** mount `~/.config/opencode`, `~/.local/share/opencode`, `~/.local/state/opencode`, or `~/.cache/opencode`, and does not mount the host `opencode.db`. Login is done once per sandbox; importing host credentials is ADR-0002.
 
-**Backend:** `bwrap` apenas. Container/Podman e a imagem compartilhada foram avaliados e descartados (ver Alternativas); container/VM fica só como fallback se a matriz de fuga achar bypass não mitigável.
+**Backend:** `bwrap` only. Container/Podman and the shared image were evaluated and discarded (see Alternatives); a container/VM remains only as a fallback if the escape matrix finds an unmitigated bypass.
 
-## Drivers da decisão
+## Decision drivers
 
-- Controle declarativo e auditável sobre a rede do sandbox.
-- Nenhum default implícito de rede: a escolha é explícita e registrada.
-- Modos restritivos fáceis de selecionar e testar.
-- Evitar root e daemon de container quando possível.
-- Linux e WSL na v1; macOS fora.
-- Baixo atrito para iniciar uma sessão.
-- Preservar o isolamento de filesystem e processos que o script já entrega.
-- Binário único em Go, sem daemon.
+- Declarative, auditable control over the sandbox network.
+- No implicit network default: the choice is explicit and recorded.
+- Restrictive modes that are easy to select and test.
+- Avoid root and a container daemon where possible.
+- Linux and WSL in v1; macOS out.
+- Low friction to start a session.
+- Preserve the filesystem and process isolation the script already provides.
+- Single Go binary, no daemon.
 
-## Alternativas consideradas
+## Alternatives considered
 
-### Opção 1: bwrap + CLI declarativa em Go (escolhida)
+### Option 1: bwrap + declarative Go CLI (chosen)
 
-Uma CLI em Go orquestra o `bwrap` a partir de uma config por projeto, aplica a política de rede e imprime a config resolvida.
+A Go CLI orchestrates `bwrap` from a per-project config, applies the network policy, and prints the resolved config.
 
-- **Prós:** leve, sem daemon, rápido; aproveita o protótipo; filesystem e processos isolados; config versionável; binário único.
-- **Contras:** `bwrap` não faz allowlist nem bridge; a ferramenta precisa fornecer proxy e bridge, além de um servidor OpenCode por sessão (`--standalone`); superfície de configuração grande; Go adiciona um toolchain novo.
+- **Pros:** lightweight, no daemon, fast; builds on the prototype; isolated filesystem and processes; versionable config; single binary.
+- **Cons:** `bwrap` does neither allowlist nor bridge; the tool must provide a proxy and a bridge, plus one OpenCode server per session (`--standalone`); large configuration surface; Go adds a new toolchain.
 
-### Opção 2: container (Docker/Podman)
+### Option 2: container (Docker/Podman)
 
-- **Prós:** namespaces, limites de recursos e imagens reproduzíveis nativos; rootless é possível; o perfil de filesystem é explícito.
-- **Contras:** daemon/root ou rootless com setup extra; mais lento; atrito de bind mount e UID; **um container não entrega allowlist por domínio sozinho** — ele também precisaria de um proxy, então a comparação não é "container vs. proxy", e sim onde o proxy e o netns vivem. O container ganha em isolamento e perde em atrito para "rodar no repo atual".
+- **Pros:** native namespaces, resource limits, and reproducible images; rootless is possible; the filesystem profile is explicit.
+- **Cons:** daemon/root or rootless with extra setup; slower; bind-mount and UID friction; **a container does not provide a per-domain allowlist by itself** — it would also need a proxy, so the comparison is not "container vs. proxy" but where the proxy and netns live. The container wins on isolation and loses on friction to "run in the current repo".
 
-**Variante avaliada: imagem compartilhada + Podman (padrão `openyolo`).** Uma imagem única com opencode, skills, MCPs e toolchains, reutilizada entre repositórios, com o projeto montado. O build é único por versão, não por repositório, o que reduz o custo que motivou a pergunta. Ainda assim: (a) não entrega allowlist por domínio — precisaria do mesmo proxy; (b) adiciona runtime de container, volume de estado e setup rootless/WSL; (c) a imagem vira fronteira de supply chain e precisa ser pinada; (d) a configuração do host não pode ser copiada para a imagem (risco de segredo na layer). Foi descartada: para o objetivo da v1, `bwrap` entrega o mesmo isolamento de filesystem/rede com menos lifecycle e sem build de imagem.
+**Variant evaluated: shared image + Podman (the `openyolo` pattern).** A single image with opencode, skills, MCPs, and toolchains, reused across repositories, with the project mounted. The build is once per version, not per repository, which reduces the cost that motivated the question. Even so: (a) it does not provide a per-domain allowlist — it would need the same proxy; (b) it adds a container runtime, a state volume, and rootless/WSL setup; (c) the image becomes a supply-chain boundary and must be pinned; (d) the host config cannot be copied into the image (risk of secrets in a layer). It was discarded: for the v1 goal, `bwrap` provides the same filesystem/network isolation with less lifecycle and no image build.
 
-### Opção 3: só configuração do OpenCode, sem sandbox
+### Option 3: OpenCode configuration only, no sandbox
 
-- **Prós:** zero infraestrutura.
-- **Contras:** não entrega controle de acesso; comandos rodam com o usuário do host.
+- **Pros:** zero infrastructure.
+- **Cons:** provides no access control; commands run as the host user.
 
-### Opção 4: manter o script e adicionar flags
+### Option 4: keep the script and add flags
 
-- **Prós:** menor esforço inicial.
-- **Contras:** a lógica de rede e de perfis vira shell difícil de testar; divergência e manutenção multiplicada; foi o limite que o script único já mostrou.
+- **Pros:** least initial effort.
+- **Cons:** network and profile logic becomes shell that is hard to test; divergence and multiplied maintenance; it was the limit the single script already showed.
 
-### Proxy explícito vs. proxy transparente
+### Explicit proxy vs. transparent proxy
 
-- **Explícito (`HTTP(S)_PROXY` + Unix socket):** simples, testável, sem `CAP_NET_ADMIN`; quebra ferramentas que ignoram as variáveis.
-- **Transparente (nftables/redirect):** cobre ferramentas que ignoram proxy; exige privilégio e mais superfície.
-- **Decisão:** explícito na v1; transparente fora da v1, só reabre com evidência de ferramenta que ignora as variáveis.
+- **Explicit (`HTTP(S)_PROXY` + Unix socket):** simple, testable, no `CAP_NET_ADMIN`; breaks tools that ignore the variables.
+- **Transparent (nftables/redirect):** covers tools that ignore the proxy; requires privilege and more surface.
+- **Decision:** explicit in v1; transparent out of v1, reopening only with evidence of a tool that ignores the variables.
 
-### Não fazer nada
+### Do nothing
 
-Manter o script fixo com rede do host. Não atende ao controle configurável e não tem default seguro.
+Keep the fixed script with host networking. It does not meet configurable control and has no secure default.
 
-## Decisão
+## Decision
 
-### Forma da ferramenta
+### Tool shape
 
-- CLI em **Go**, binário único **`asb`**, sem daemon.
-- **Backend único: `bwrap`.** Sem container e sem imagem compartilhada na v1; container/VM fica apenas como fallback se a matriz de fuga achar bypass não mitigável.
-- **Config declarativa por projeto:** TOML, arquivo `asb.toml` na raiz; global em `$XDG_CONFIG_HOME/asb/config.toml`; precedência CLI > projeto > global; sem default de rede. Schema no RFC-0001 (§5.2).
-- A ferramenta imprime a **config resolvida** antes de executar, para auditoria.
-- **Sem default implícito de rede:** o primeiro uso exige escolher `host`, `none` ou `allowlist`; a escolha é salva no projeto. O wrapper `opencode-sandbox` e o fallback legado foram removidos: não existe `--profile host` implícito.
-- A v1 preserva o perfil de filesystem/processos do script: sistema somente leitura, `$HOME` em `tmpfs`, projeto em leitura/escrita. O `~/.gitconfig` do host não é montado; ver a seção de git config. Mounts configuráveis ficam para depois.
-- O OpenCode continua rodando com **`--standalone`**, como no protótipo atual.
-- **XDG próprio por sandbox:** `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_STATE_HOME` e `XDG_CACHE_HOME` apontam para `$XDG_STATE_HOME/asb/sandboxes/<id>/opencode`; `<id>` = `<basename-do-projeto>-<sha256(caminho)[0:8]>`, sobrescrito por `--sandbox-id`. Nenhum bind gravável de config/data/state/cache global do host. O default é persistente; o modo efêmero fica na ADR-0002.
-- **`--clearenv`** no sandbox; apenas variáveis de uma allowlist (base + projeto) entram. **Valores de ambiente não vão no argv do `bwrap`:** são entregues por fd/arquivo efêmero lido por `asb exec`, que remove o arquivo antes do exec; `--setenv` fica restrito a `HOME`, XDG e variáveis de proxy definidas pela ferramenta.
-- **Git config:** `[git] mode = "minimal"` (default) gera `user.name`, `user.email` e `init.defaultBranch` copiados do `~/.gitconfig` do host; `mode = "manual"` copia apenas as chaves listadas; `mode = "off"` não gera arquivo. O arquivo do host nunca é montado inteiro.
-- **Credenciais na v1:** login dentro do XDG do sandbox, uma vez por sandbox. `opencode auth export/import`, rotação e limpeza ficam na ADR-0002.
+- **Go** CLI, single binary **`asb`**, no daemon.
+- **Single backend: `bwrap`.** No container and no shared image in v1; a container/VM remains only as a fallback if the escape matrix finds an unmitigated bypass.
+- **Declarative per-project config:** TOML, `asb.toml` at the root; global at `$XDG_CONFIG_HOME/asb/config.toml`; precedence CLI > project > global; no network default. Schema in RFC-0001 (§5.2).
+- The tool prints the **resolved config** before executing, for auditability.
+- **No implicit network default:** first use requires choosing `host`, `none`, or `allowlist`; the choice is saved in the project. The `opencode-sandbox` wrapper and the legacy fallback were removed: there is no implicit `--profile host`.
+- v1 preserves the script's filesystem/process profile: read-only system, `$HOME` on `tmpfs`, project read/write. The host `~/.gitconfig` is not mounted; see the git config section. Configurable mounts come later.
+- OpenCode keeps running with **`--standalone`**, as in the current prototype.
+- **Per-sandbox XDG:** `XDG_CONFIG_HOME`, `XDG_DATA_HOME`, `XDG_STATE_HOME`, and `XDG_CACHE_HOME` point to `$XDG_STATE_HOME/asb/sandboxes/<id>/opencode`; `<id>` = `<project-basename>-<sha256(path)[0:8]>`, overridden by `--sandbox-id`. No writable bind of the host's global config/data/state/cache. The default is persistent; ephemeral mode belongs to ADR-0002.
+- **`--clearenv`** in the sandbox; only variables from an allowlist (base + project) enter. **Environment values do not go in the `bwrap` argv:** they are delivered through an fd/ephemeral file read by `asb exec`, which removes the file before exec; `--setenv` is restricted to `HOME`, XDG, and proxy variables defined by the tool.
+- **Git config:** `[git] mode = "minimal"` (default) generates `user.name`, `user.email`, and `init.defaultBranch` copied from the host `~/.gitconfig`; `mode = "manual"` copies only the listed keys; `mode = "off"` generates no file. The host file is never mounted whole.
+- **Credentials in v1:** login inside the sandbox XDG, once per sandbox. `opencode auth export/import`, rotation, and cleanup belong to ADR-0002.
 
-### Política de rede na v1
+### Network policy in v1
 
-- **`host`:** compartilha o namespace de rede do host (comportamento do script atual).
-- **`none`:** `--unshare-net`; o sandbox só tem loopback.
-- **`allowlist`:** namespace de rede isolado com **proxy explícito via Unix socket**; **egress direto bloqueado**.
-  - Caminho validado nos spikes de 2026-10-27 e 2026-10-29: `--unshare-net` + bridge TCP→Unix socket + proxy no host. curl, git, Node (com `NODE_USE_ENV_PROXY=1`), OpenCode, **npm** e **pip** passaram; domínio negado, metadata, IP privado, DNS rebinding, DNS direto, IPv6 e QUIC ficaram bloqueados; `/dev/net/tun` ausente e `mknod` negado. A matriz automatizada em CI continua como gate de release.
-  - O socket do proxy fica em diretório privado/read-only; a bridge é fornecida pela ferramenta e montada read-only. `NO_PROXY=localhost,127.0.0.1,::1` para o serviço local do OpenCode.
-  - O binário Go tem subcomandos internos `proxy` e `bridge`; a bridge é o mesmo binário montado read-only no sandbox, sem depender de Python/Node do host.
-  - Nenhum socket Unix do host além do proxy; `/dev/net/tun` ausente e `mknod`/device cgroup bloqueado para impedir NAT usermode (`slirp4netns`/`pasta`). `unshare -Urn` é permitido dentro do sandbox, mas sem `/dev/net/tun` e sem device não há caminho de egress.
-  - A allowlist nega IPs privados, link-local, loopback do host e endpoints de metadata; a v1 não tem exceção configurável.
-  - DNS é resolvido pelo proxy; UDP/QUIC e IPv6 ficam sem rota no netns. O proxy resolve apenas IPv4 e falha fechado para host AAAA-only.
-  - A lista é por **nome de destino**; destino que resolve para IP privado é rejeitado (proteção contra DNS rebinding).
-  - O proxy não faz MITM: filtra por hostname (CONNECT), não por path. Qualquer domínio permitido é um canal de saída; a política deve ser mínima.
-  - Proxy transparente com nftables não faz parte da v1; só reabre com evidência de ferramenta que ignora proxy explícito e uma ADR própria.
-  - **A bridge TCP→Unix socket faz parte da v1.** "Bridge" no sentido de bridge L2 e remoção da rede local ficam fora da v1.
+- **`host`:** shares the host network namespace (current script behavior).
+- **`none`:** `--unshare-net`; the sandbox has loopback only.
+- **`allowlist`:** isolated network namespace with an **explicit proxy over a Unix socket**; **direct egress blocked**.
+  - Path validated in the 2026-10-27 and 2026-10-29 spikes: `--unshare-net` + TCP-to-Unix-socket bridge + proxy on the host. curl, git, Node (with `NODE_USE_ENV_PROXY=1`), OpenCode, **npm**, and **pip** passed; denied domain, metadata, private IP, DNS rebinding, direct DNS, IPv6, and QUIC were blocked; `/dev/net/tun` absent and `mknod` denied. The automated matrix in CI remains the release gate.
+  - The proxy socket lives in a private/read-only directory; the bridge is provided by the tool and mounted read-only. `NO_PROXY=localhost,127.0.0.1,::1` for the local OpenCode service.
+  - The Go binary has internal `proxy` and `bridge` subcommands; the bridge is the same binary mounted read-only in the sandbox, without depending on the host's Python/Node.
+  - No host Unix socket besides the proxy; `/dev/net/tun` absent and `mknod`/device cgroup blocked to prevent user-mode NAT (`slirp4netns`/`pasta`). `unshare -Urn` is allowed inside the sandbox, but without `/dev/net/tun` and without a device there is no egress path.
+  - The allowlist denies private IPs, link-local, host loopback, and metadata endpoints; v1 has no configurable exception.
+  - DNS is resolved by the proxy; UDP/QUIC and IPv6 have no route in the netns. The proxy resolves IPv4 only and fails closed for AAAA-only hosts.
+  - The list is by **destination name**; a destination that resolves to a private IP is rejected (protection against DNS rebinding).
+  - The proxy does no MITM: it filters by hostname (CONNECT), not by path. Any allowed domain is an egress channel; the policy must be minimal.
+  - Transparent proxy with nftables is not part of v1; it reopens only with evidence of a tool that ignores an explicit proxy and a dedicated ADR.
+  - **The TCP-to-Unix-socket bridge is part of v1.** "Bridge" in the L2 sense and removal of the local network are out of v1.
 
-### Configuração e operação
+### Configuration and operation
 
-- Listas de `network.allow`/`env.allow` substituem, não fazem merge.
-- `--print-config` imprime a config resolvida antes de executar.
-- A ferramenta falha com mensagem clara se `bwrap` ou user namespaces não estiverem disponíveis.
-- O preflight testa o perfil alvo: `--unshare-net` no `none`/`allowlist`, e `--cap-drop ALL`/`--clearenv` em todos; não só o sandbox básico.
-- O socket do proxy usa `XDG_RUNTIME_DIR` ou `/tmp/asb-<uid>/<hash>`, com dono e modo verificados; nunca `/tmp/asb`.
-- O startup é medido em duas partes: setup (config + proxy + args) e tempo até o comando executar.
-- Allowlist base de env: `PATH`, `TERM`, `LANG`, `LC_ALL`, `TZ`, `USER`, `LOGNAME`, `SHELL`; `HOME` e proxy são definidos pela ferramenta. Segredos entram só por `[env] allow` ou `from_file`, entregues por fd/arquivo, nunca por argv; `auth export/import` e a política de segredos ficam na ADR-0002.
+- `network.allow`/`env.allow` lists replace, they do not merge.
+- `--print-config` prints the resolved config before executing.
+- The tool fails with a clear message if `bwrap` or user namespaces are unavailable.
+- Preflight tests the target profile: `--unshare-net` in `none`/`allowlist`, and `--cap-drop ALL`/`--clearenv` in all of them; not just the basic sandbox.
+- The proxy socket uses `XDG_RUNTIME_DIR` or `/tmp/asb-<uid>/<hash>`, with owner and mode verified; never `/tmp/asb`.
+- Startup is measured in two parts: setup (config + proxy + args) and time until the command executes.
+- Base env allowlist: `PATH`, `TERM`, `LANG`, `LC_ALL`, `TZ`, `USER`, `LOGNAME`, `SHELL`; `HOME` and proxy are defined by the tool. Secrets enter only through `[env] allow` or `from_file`, delivered by fd/file, never through argv; `auth export/import` and the secrets policy belong to ADR-0002.
 
-### Plataformas
+### Platforms
 
-Linux e WSL. macOS fora da v1; `bwrap` não existe lá.
+Linux and WSL. macOS out of v1; `bwrap` does not exist there.
 
-### Critério de sucesso
+### Success criteria
 
-- Matriz automatizada de fuga por perfil, incluindo curl, git, Node, OpenCode, npm, pip, IPv6, QUIC, DNS rebinding, NAT usermode, `--clearenv`, `--standalone` e tentativa de escrita no host.
-- `--standalone`: o servidor do OpenCode é filho do `bwrap`; nunca o serviço compartilhado do host.
-- Nenhum socket Unix do host além do proxy; `/dev/net/tun` ausente e `mknod` negado.
-- Segredo de `env.allow`/`from_file` não aparece em `/proc/<pid>/cmdline`; o `~/.gitconfig` do host não é montado.
-- Dogfood no próprio repositório por 2 semanas, responsável Gustavo, **começando após o gate do `allowlist`**; scorecard: 0 fugas, 0 escritas no estado global do host, falsos positivos da allowlist triados e startup medido.
-- **Liberação do `allowlist`:** a v1 pode ser dogfoodada com `host`/`none`; `allowlist` só é anunciado como pronto quando a matriz automatizada em CI cobrir os itens acima. npm/pip e NAT usermode passaram manualmente em 2026-10-29; o gate agora é automatizar e fechar as lacunas, não descobrir.
+- Automated escape matrix per profile, including curl, git, Node, OpenCode, npm, pip, IPv6, QUIC, DNS rebinding, user-mode NAT, `--clearenv`, `--standalone`, and an attempt to write to the host.
+- `--standalone`: the OpenCode server is a child of `bwrap`; never the shared host service.
+- No host Unix socket besides the proxy; `/dev/net/tun` absent and `mknod` denied.
+- A secret from `env.allow`/`from_file` does not appear in `/proc/<pid>/cmdline`; the host `~/.gitconfig` is not mounted.
+- Dogfood in the repository for 2 weeks, owner Gustavo, **starting after the `allowlist` gate**; scorecard: 0 escapes, 0 writes to host global state, triaged allowlist false positives, and measured startup.
+- **`allowlist` release:** v1 can be dogfooded with `host`/`none`; `allowlist` is announced as ready only when the automated matrix in CI covers the items above. npm/pip and user-mode NAT passed manually on 2026-10-29; the gate is now to automate and close the gaps, not to discover.
 
-## Consequências
+## Consequences
 
-- **Positivas:** o usuário declara o acesso em vez de herdar o default do script; o perfil aplicado pode ser versionado, impresso e revisado; filesystem/processos isolados com custo baixo; o servidor que executa ferramentas fica dentro do sandbox; a v1 é menor e mais fácil de dogfoodar.
-- **Negativas / custos:**
-  - Allowlist exige proxy e testes de fuga; é a parte mais cara e a que mais pode dar falso senso de segurança. npm/pip passaram manualmente em 2026-10-29; a matriz em CI ainda não cobre git, Node, OpenCode, DNS rebinding, NAT usermode, `--clearenv`, `--standalone` nem escrita no host.
-  - Proxy explícito quebra ferramentas que ignoram `HTTP(S)_PROXY`; Node precisa de `NODE_USE_ENV_PROXY=1`; proxy transparente adiciona nftables/netns e possível necessidade de `CAP_NET_ADMIN`.
-  - `--standalone` sobe um servidor por sessão e adiciona latência de inicialização.
-  - O proxy passa a ser um componente confiável do caminho de rede; um bug nele compromete a allowlist.
-  - Config declarativa tende a divergir do estado real sem validação e testes por perfil.
-  - `bwrap` é Linux-only; WSL tem a fragilidade de DNS já conhecida.
-  - Sem limites de CPU/memória e sem seccomp/AppArmor específico no protótipo.
-  - Go adiciona build/teste e distribuição de binário.
-  - **A v1 não importa credenciais do host:** cada sandbox exige um login inicial; `auth export/import`, `--ephemeral`, rotação e limpeza ficam na ADR-0002.
-  - O estado persistente do sandbox contém credenciais em disco; o agente lê as do próprio sandbox (necessário para o provider). O que se elimina é o acesso ao estado global do host.
-  - `asb exec` adiciona um subcomando e um arquivo/fd efêmero; o binário precisa ser montado read-only em todos os perfis, não só no `allowlist`.
-  - `[git] mode = "minimal"` copia identidade do host; `manual` pode copiar chaves que contenham segredo se o usuário escolher. O default não monta o arquivo inteiro.
-  - A matriz expandida aumenta o tempo de CI e exige instalar/pinar OpenCode e as toolchains de teste.
-- **Riscos e mitigações:**
-  - Fuga da allowlist por IP direto, DNS alternativo, QUIC ou DNS rebinding — mitigação: `--unshare-net` sem rota, proxy como único egress, negar IPs privados/link-local/metadata, DNS no proxy e testar cada caminho. Qualquer fuga não bloqueada → container.
-  - Exfiltração para um domínio permitido — mitigação: lista mínima, revisão da política e documentação de que a allowlist é por hostname, não por conteúdo.
-  - OpenCode conectar ao serviço do host e executar ferramentas fora do sandbox — mitigação: `--standalone` obrigatório e teste da árvore de processos.
-  - Proxy comprometido ou socket/bridge adulterado — mitigação: código pequeno, sem MITM, socket `0600` em diretório privado/read-only, bridge da ferramenta read-only e testes.
-  - Bypass por NAT usermode (`slirp4netns`, `pasta`, `rootlesskit`) — mitigação: sem `/dev/net/tun`, `mknod`/device cgroup bloqueado, sem sockets do host; `unshare -Urn` é permitido, mas sem device não cria egress; teste com helpers instalados.
-  - Credenciais do sandbox legíveis pelo agente e persistidas em disco — mitigação: passar o mínimo, não importar do host na v1, `--ephemeral` e rotação na ADR-0002; revogar rápido em caso de vazamento.
-  - Segredo de ambiente visível no argv do `bwrap` — mitigação: entregar por fd/arquivo efêmero lido por `asb exec`, remover antes do exec e testar `/proc/<pid>/cmdline`.
-  - `~/.gitconfig` do host expõe `credential.helper`/tokens — mitigação: não montar o arquivo; gerar `minimal` ou copiar chaves explícitas no `manual`.
-  - Fallback do socket em `/tmp/asb` colide com o binário ou com diretório de outro usuário — mitigação: `/tmp/asb-<uid>/<hash>` com dono/modo verificados e teste de regressão.
-  - Matriz de CI menor que o critério de sucesso — mitigação: expandir `scripts/matrix.sh` antes de liberar o `allowlist`.
-  - Falso senso de segurança — mitigação: documentar o que cada perfil garante e não garante; default exige escolha; CI autoritativo.
-  - Regressão de DNS em WSL — mitigação: teste automatizado do `resolv.conf`.
+- **Positive:** the user declares access instead of inheriting the script's default; the applied profile can be versioned, printed, and reviewed; filesystem/process isolation at low cost; the server that runs tools stays inside the sandbox; v1 is smaller and easier to dogfood.
+- **Negative / costs:**
+  - The allowlist requires a proxy and escape tests; it is the most expensive part and the one most likely to create a false sense of security. npm/pip passed manually on 2026-10-29; the CI matrix does not yet cover git, Node, OpenCode, DNS rebinding, user-mode NAT, `--clearenv`, `--standalone`, or writes to the host.
+  - An explicit proxy breaks tools that ignore `HTTP(S)_PROXY`; Node needs `NODE_USE_ENV_PROXY=1`; a transparent proxy adds nftables/netns and a possible need for `CAP_NET_ADMIN`.
+  - `--standalone` starts one server per session and adds startup latency.
+  - The proxy becomes a trusted component on the network path; a bug in it compromises the allowlist.
+  - Declarative config tends to drift from the real state without validation and per-profile tests.
+  - `bwrap` is Linux-only; WSL has the known DNS fragility.
+  - No CPU/memory limits and no specific seccomp/AppArmor in the prototype.
+  - Go adds builds, tests, and binary distribution.
+  - **v1 does not import host credentials:** each sandbox requires an initial login; `auth export/import`, `--ephemeral`, rotation, and cleanup belong to ADR-0002.
+  - The sandbox's persistent state contains credentials on disk; the agent reads its own sandbox's credentials (required for the provider). What is removed is access to the host's global state.
+  - `asb exec` adds a subcommand and an ephemeral file/fd; the binary must be mounted read-only in all profiles, not only in `allowlist`.
+  - `[git] mode = "minimal"` copies host identity; `manual` may copy keys that contain secrets if the user chooses them. The default does not mount the whole file.
+  - The expanded matrix increases CI time and requires installing/pinning OpenCode and the test toolchains.
+- **Risks and mitigations:**
+  - Allowlist escape through a direct IP, alternative DNS, QUIC, or DNS rebinding — mitigation: `--unshare-net` with no route, proxy as the only egress, deny private/link-local/metadata IPs, DNS in the proxy, and test every path. Any unblocked escape → container.
+  - Exfiltration to an allowed domain — mitigation: minimal list, policy review, and documentation that the allowlist is by hostname, not by content.
+  - OpenCode connecting to the host service and running tools outside the sandbox — mitigation: mandatory `--standalone` and a process-tree test.
+  - Compromised proxy or tampered socket/bridge — mitigation: small code, no MITM, `0600` socket in a private/read-only directory, tool bridge read-only, and tests.
+  - Bypass through user-mode NAT (`slirp4netns`, `pasta`, `rootlesskit`) — mitigation: no `/dev/net/tun`, `mknod`/device cgroup blocked, no host sockets; `unshare -Urn` is allowed, but without a device it creates no egress; test with the helpers installed.
+  - Sandbox credentials readable by the agent and persisted on disk — mitigation: pass the minimum, do not import from the host in v1, `--ephemeral` and rotation in ADR-0002; revoke quickly on a leak.
+  - Environment secret visible in the `bwrap` argv — mitigation: deliver through an fd/ephemeral file read by `asb exec`, remove it before exec, and test `/proc/<pid>/cmdline`.
+  - Host `~/.gitconfig` exposing `credential.helper`/tokens — mitigation: do not mount the file; generate `minimal` or copy explicit keys in `manual`.
+  - Socket fallback at `/tmp/asb` colliding with the binary or another user's directory — mitigation: `/tmp/asb-<uid>/<hash>` with verified owner/mode and a regression test.
+  - CI matrix smaller than the success criteria — mitigation: expand `scripts/matrix.sh` before releasing `allowlist`.
+  - False sense of security — mitigation: document what each profile guarantees and does not guarantee; the default requires a choice; CI is authoritative.
+  - DNS regression on WSL — mitigation: automated `resolv.conf` test.
 
-## Confirmação
+## Confirmation
 
-A v1 é considerada pronta quando:
+v1 is considered ready when:
 
-- `host`: rede funciona; escrita fora do projeto não persiste.
-- `none`: só loopback; nenhuma conexão externa.
-- `allowlist`: domínio permitido funciona; domínio fora da lista, IP direto, DNS alternativo, QUIC, IPv6 e IP privado/metadata falham; git, Node, OpenCode, npm, pip e DNS rebinding também passam/falham conforme a política; NAT usermode não cria egress.
-- `--standalone`: o servidor do OpenCode é filho do `bwrap`; nunca o serviço compartilhado do host.
-- Nenhuma escrita em config/data/state/cache global do host nem no `opencode.db`; XDG por sandbox.
-- `--clearenv`: variável não declarada não existe; variável declarada existe.
-- Segredo de `env.allow`/`from_file` não aparece em `/proc/<pid>/cmdline`; o `~/.gitconfig` do host não é montado; `[git]` gera o arquivo mínimo ou as chaves do `manual`.
-- Socket do proxy em diretório privado/read-only; bridge da ferramenta read-only; agente não consegue alterar o canal.
-- Sem `/dev/net/tun` e sem NAT usermode (`slirp4netns`/`pasta`); nenhum socket Unix do host além do proxy.
-- Matriz de fuga automatizada passa em CI cobrindo os itens acima; dogfood no repositório por 2 semanas, começando após o gate.
-- Startup medido em duas partes (setup e tempo até o comando) e registrado; sem meta numérica na v1 (baseline de 2026-10-29 no RFC-0001, §9).
-- Revisão da decisão **2 semanas após o início do dogfood**. A matriz automatizada em CI é o gate de release do `allowlist`; não há prazo separado. Reverter para container/VM se houver fuga não mitigável, comprometimento do proxy ou incompatibilidade de proxy inaceitável.
+- `host`: network works; writes outside the project do not persist.
+- `none`: loopback only; no external connection.
+- `allowlist`: an allowed domain works; a domain outside the list, a direct IP, alternative DNS, QUIC, IPv6, and private/metadata IPs fail; git, Node, OpenCode, npm, pip, and DNS rebinding also pass/fail according to policy; user-mode NAT creates no egress.
+- `--standalone`: the OpenCode server is a child of `bwrap`; never the shared host service.
+- No writes to global host config/data/state/cache or `opencode.db`; XDG per sandbox.
+- `--clearenv`: an undeclared variable does not exist; a declared variable exists.
+- A secret from `env.allow`/`from_file` does not appear in `/proc/<pid>/cmdline`; the host `~/.gitconfig` is not mounted; `[git]` generates the minimal file or the `manual` keys.
+- Proxy socket in a private/read-only directory; tool bridge read-only; the agent cannot change the channel.
+- No `/dev/net/tun` and no user-mode NAT (`slirp4netns`/`pasta`); no host Unix socket besides the proxy.
+- The automated escape matrix passes in CI covering the items above; dogfood in the repository for 2 weeks, starting after the gate.
+- Startup measured in two parts (setup and time until the command) and recorded; no numeric target in v1 (2026-10-29 baseline in RFC-0001, §9).
+- Decision review **2 weeks after dogfood starts**. The automated matrix in CI is the `allowlist` release gate; there is no separate deadline. Revert to a container/VM if there is an unmitigated escape, proxy compromise, or unacceptable proxy incompatibility.
 
-## Questões em aberto
+## Open questions
 
-**Resolvidas em 2026-10-29:** npm/pip via proxy (ambos passaram), NAT usermode no perfil atual (sem tun, `mknod` negado, sem helpers; `unshare -Urn` sem egress), config (`asb.toml` + precedência), migração do script (wrapper que falha sem `asb`; **substituída em 2026-11-01: wrapper removido**), startup (medir, sem meta), Go (mantido) e allowlist base de env (8 variáveis).
+**Resolved on 2026-10-29:** npm/pip through the proxy (both passed), user-mode NAT in the current profile (no tun, `mknod` denied, no helpers; `unshare -Urn` without egress), config (`asb.toml` + precedence), script migration (a wrapper that fails without `asb`; **replaced on 2026-11-01: wrapper removed**), startup (measure, no target), Go (kept), and base env allowlist (8 variables).
 
-**Decididas em 2026-11-01 (implementação pendente):** wrapper/legado removido; segredos de env por fd/arquivo (`asb exec`); `[git]` `minimal`/`manual`; gate do `allowlist` expandido; dogfood após o gate; socket `/tmp/asb-<uid>/<hash>`; startup em duas partes; preflight com `--unshare-net`.
+**Decided on 2026-11-01 (implementation pending):** wrapper/legacy removed; env secrets by fd/file (`asb exec`); `[git]` `minimal`/`manual`; expanded `allowlist` gate; dogfood after the gate; `/tmp/asb-<uid>/<hash>` socket; two-part startup; preflight with `--unshare-net`.
 
-| # | Questão | Dono | Bloqueia? | Prazo | Status |
+| # | Question | Owner | Blocks? | Due | Status |
 |---|---|---|---|---|---|
-| 1 | Toolchains além de npm/pip/node (Go, Rust, Java) na matriz | Gustavo | Não; Fase 2 | durante o dogfood | Aberta |
-| 2 | Proxy cai no meio da sessão: falhar fechado, retry ou encerrar | Gustavo | Não; Fase 2 | Fase 2 | Aberta |
-| 3 | Credenciais: login por sandbox vs. `auth export/import` (ADR-0002) | Gustavo | Não para a v1 | ADR-0002 | Fora desta ADR |
-| 4 | Proxy transparente como fallback | Gustavo | Não | — | Fechada: fora da v1 |
-| 5 | Risco residual de `unshare -Urn` se um device/tun aparecer no futuro | Gustavo | Não | revisão do dogfood | Aberta |
-| 6 | Segredos de env por fd/arquivo (`asb exec`) e teste de argv | Gustavo | Sim, para o `allowlist` | antes do release | Aberta |
-| 7 | Matriz expandida: git, Node, OpenCode, rebinding, NAT, `--clearenv`, `--standalone`, escrita no host | Gustavo | Sim, para o `allowlist` | antes do release | Aberta |
-| 8 | `[git] mode = minimal`/`manual` e remoção do mount do `.gitconfig` | Gustavo | Sim, para o `allowlist` | antes do release | Aberta |
-| 9 | Fallback `/tmp/asb` e teste de regressão | Gustavo | Sim, para o `allowlist` | antes do release | Aberta |
-| 10 | WSL sem runner automatizado | Gustavo | Não | antes do dogfood | Aberta |
-| 11 | Definição de startup (setup vs. até o comando) | Gustavo | Não | 2026-11-10 | Aberta |
-| 12 | Preflight com `--unshare-net`/`--cap-drop ALL` | Gustavo | Não | 2026-11-10 | Aberta |
-| 13 | Versão do OpenCode pinada na matriz | Gustavo | Não | antes do CI verde | Aberta |
+| 1 | Toolchains beyond npm/pip/node (Go, Rust, Java) in the matrix | Gustavo | No; Phase 2 | during dogfood | Open |
+| 2 | Proxy drops mid-session: fail closed, retry, or terminate | Gustavo | No; Phase 2 | Phase 2 | Open |
+| 3 | Credentials: login per sandbox vs. `auth export/import` (ADR-0002) | Gustavo | Not for v1 | ADR-0002 | Out of this ADR |
+| 4 | Transparent proxy as fallback | Gustavo | No | — | Closed: out of v1 |
+| 5 | Residual risk of `unshare -Urn` if a device/tun appears in the future | Gustavo | No | dogfood review | Open |
+| 6 | Env secrets by fd/file (`asb exec`) and argv test | Gustavo | Yes, for `allowlist` | before release | Open |
+| 7 | Expanded matrix: git, Node, OpenCode, rebinding, NAT, `--clearenv`, `--standalone`, host writes | Gustavo | Yes, for `allowlist` | before release | Open |
+| 8 | `[git] mode = minimal`/`manual` and removal of the `.gitconfig` mount | Gustavo | Yes, for `allowlist` | before release | Open |
+| 9 | `/tmp/asb` fallback and regression test | Gustavo | Yes, for `allowlist` | before release | Open |
+| 10 | WSL without an automated runner | Gustavo | No | before dogfood | Open |
+| 11 | Startup definition (setup vs. until the command) | Gustavo | No | 2026-11-10 | Open |
+| 12 | Preflight with `--unshare-net`/`--cap-drop ALL` | Gustavo | No | 2026-11-10 | Open |
+| 13 | OpenCode version pinned in the matrix | Gustavo | No | before green CI | Open |
 
-## Revisões
+## Revisions
 
-| Data | Mudança | Motivo |
+| Date | Change | Reason |
 |---|---|---|
-| 2026-10-27 | Criação do rascunho | ADR inexistente; decisão inferida do script `opencode-sandbox` |
-| 2026-10-27 | Reescopo para ferramenta configurável; rede com 3 perfis; skills/hooks; env allowlist; Go; Linux/WSL | Respostas do grill |
-| 2026-10-27 | Skills em store XDG no host, auto-update opt-in, snapshot read-only por sessão, overlay ferramenta+projeto; hooks como runner genérico configurável | Ajuste solicitado pelo usuário em skills e hooks |
-| 2026-10-27 | Spike de rede: proxy explícito via Unix socket + `--unshare-net` escolhido; descoberta cliente-servidor → `--standalone`; XDG por sandbox + `auth export/import`; adaptador de hooks via plugin `execute.before/after` | Evidência do spike e revisão do protótipo |
-| 2026-10-29 | Reescopo: a ADR-0001 passa a cobrir só a v1 (CLI Go + rede/roteamento); estado/credenciais, skills e hooks foram extraídos para ADR-0002, ADR-0003 e ADR-0004 | Decisão do usuário de separar em 4 ADRs e reduzir a v1 |
-| 2026-10-29 | v1 absorve o mínimo da ADR-0002: XDG por sandbox, `--clearenv`/env allowlist e `--standalone`; `auth export/import`, efêmero, rotação e limpeza ficam na ADR-0002 | Decisão do grill (Q3): não manter os binds graváveis do host |
-| 2026-10-29 | Backend `bwrap` apenas; container/Podman e a imagem compartilhada foram descartados; `allowlist` condicionado à matriz npm/pip/NAT; revisão relativa ao início do dogfood | Decisões do grill (Q4-Q7) |
-| 2026-10-29 | Status → `Proposta (em RFC)`; link para o RFC-0001 | RFC gerado a partir da ADR corrigida pelo grill |
-| 2026-10-29 | Pendências fechadas: `asb`/`asb.toml` + precedência, allowlist base de env, matriz repetida (npm/pip passaram; `unshare -Urn` residual), migração do script, startup sem meta numérica | Revisão de fechamento do RFC |
-| 2026-11-01 | Revisão do grill: wrapper/legado removido; segredos de env por fd/arquivo; `[git]` `minimal`/`manual`; gate do `allowlist` expandido; dogfood após o gate; correções de socket, startup e preflight | Revisão da ADR-0001 e do RFC-0001 com evidências do código (testes, smoke e `/proc/<pid>/cmdline`) |
+| 2026-10-27 | Draft created | No ADR existed; decision inferred from the `opencode-sandbox` script |
+| 2026-10-27 | Rescope to a configurable tool; 3-profile network; skills/hooks; env allowlist; Go; Linux/WSL | Grill answers |
+| 2026-10-27 | Skills in a host XDG store, opt-in auto-update, read-only per-session snapshot, tool+project overlay; hooks as a generic configurable runner | User-requested adjustment to skills and hooks |
+| 2026-10-27 | Network spike: explicit proxy over a Unix socket + `--unshare-net` chosen; client-server discovery → `--standalone`; XDG per sandbox + `auth export/import`; hook adapter through the `execute.before/after` plugin | Spike evidence and prototype review |
+| 2026-10-29 | Rescope: ADR-0001 now covers only v1 (Go CLI + network/routing); state/credentials, skills, and hooks were extracted to ADR-0002, ADR-0003, and ADR-0004 | User decision to split into 4 ADRs and shrink v1 |
+| 2026-10-29 | v1 absorbs the minimum from ADR-0002: XDG per sandbox, `--clearenv`/env allowlist, and `--standalone`; `auth export/import`, ephemeral, rotation, and cleanup stay in ADR-0002 | Grill decision (Q3): do not keep the host's writable binds |
+| 2026-10-29 | `bwrap`-only backend; container/Podman and the shared image were discarded; `allowlist` conditioned on the npm/pip/NAT matrix; review relative to the start of dogfood | Grill decisions (Q4-Q7) |
+| 2026-10-29 | Status → `Proposed (in RFC)`; link to RFC-0001 | RFC generated from the ADR corrected by the grill |
+| 2026-10-29 | Pending items closed: `asb`/`asb.toml` + precedence, base env allowlist, repeated matrix (npm/pip passed; residual `unshare -Urn`), script migration, startup without a numeric target | RFC closure review |
+| 2026-11-01 | Grill revision: wrapper/legacy removed; env secrets by fd/file; `[git]` `minimal`/`manual`; expanded `allowlist` gate; dogfood after the gate; socket, startup, and preflight corrections | ADR-0001 and RFC-0001 revision with code evidence (tests, smoke, and `/proc/<pid>/cmdline`) |

@@ -1,43 +1,43 @@
 # agentsandboxing
 
-Sandbox de agentes de código com política de rede declarativa, backend único
-`bwrap` e binário Go `asb`. Linux e WSL; sem daemon e sem container na v1.
+Sandbox for coding agents with a declarative network policy, a single `bwrap`
+backend, and the Go binary `asb`. Linux and WSL; no daemon and no container in v1.
 
-## Instalação
+## Installation
 
 ```sh
 go build -o asb ./cmd/asb
-# ou
+# or
 go install github.com/gustavoxffff/agentsandboxing/cmd/asb@latest
 ```
 
-Requisitos: `bubblewrap`, user namespaces habilitados e `opencode` no `PATH`
-para o comando padrão.
+Requirements: `bubblewrap`, user namespaces enabled, and `opencode` on `PATH`
+for the default command.
 
-## Uso rápido
+## Quick start
 
 ```sh
-asb init --profile none          # cria asb.toml no projeto
-asb run -- /bin/sh -c 'curl https://example.com'   # deve falhar
+asb init --profile none          # creates asb.toml in the project
+asb run -- /bin/sh -c 'curl https://example.com'   # must fail
 asb run --profile host -- opencode --standalone
-asb print-config                 # mostra a config resolvida e sai
-asb doctor                       # checa bwrap, userns e caminhos
+asb print-config                 # prints the resolved config and exits
+asb doctor                       # checks bwrap, userns, and paths
 ```
 
-Sem perfil configurado, o `asb` falha pedindo uma escolha explícita: `host`,
-`none` ou `allowlist`.
+Without a configured profile, `asb` fails and asks for an explicit choice:
+`host`, `none`, or `allowlist`.
 
-| Perfil | Garantia |
+| Profile | Guarantee |
 |---|---|
-| `host` | rede do host; sem isolamento de rede |
-| `none` | apenas loopback; nenhuma conexão externa |
-| `allowlist` | só destinos da lista, via proxy; egress direto bloqueado |
+| `host` | host network; no network isolation |
+| `none` | loopback only; no external connection |
+| `allowlist` | only listed destinations, through the proxy; direct egress blocked |
 
-O `opencode-sandbox` é um wrapper: executa `asb run` e falha se o `asb` não
-estiver no `PATH`. Sem `asb.toml`, ele avisa e usa `--profile host`
-(comportamento legado).
+`opencode-sandbox` is a wrapper: it runs `asb run` and fails if `asb` is not on
+`PATH`. Without `asb.toml`, it warns and uses `--profile host` (legacy
+behavior).
 
-Testes e matriz de fuga:
+Tests and escape matrix:
 
 ```sh
 go test ./...
@@ -45,9 +45,9 @@ go build -o /tmp/asb ./cmd/asb
 ASB=/tmp/asb scripts/matrix.sh
 ```
 
-Documentação completa: [docs/asb.md](docs/asb.md). Decisão e escopo:
-[ADR-0001](docs/adr/0001-sandbox-opencode-com-bwrap.md) e
-[RFC-0001](docs/rfc/0001-sandbox-configuravel-para-agentes.md).
+Full documentation: [docs/asb.md](docs/asb.md). Decision and scope:
+[ADR-0001](docs/adr/0001-sandbox-opencode-com-bwrap.md) and
+[RFC-0001](docs/rfc/0001-configurable-sandbox-for-agents.md).
 
 ## Contributing
 

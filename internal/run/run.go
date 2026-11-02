@@ -1,4 +1,4 @@
-// Package run orquestra config, preflight, proxy e bwrap.
+// Package run orchestrates config, preflight, proxy and bwrap.
 package run
 
 import (
@@ -18,7 +18,7 @@ import (
 	"github.com/gustavoxffff/agentsandboxing/internal/sandbox"
 )
 
-// Options são os parâmetros de uma execução do asb.
+// Options are the parameters of an asb execution.
 type Options struct {
 	ProjectDir string
 	Overrides  config.Overrides
@@ -33,8 +33,8 @@ type Options struct {
 	SelfPath  string
 }
 
-// Execute resolve, imprime, valida e executa o sandbox. Retorna o código de
-// saída do comando. ErrNoProfile é devolvido sem executar nada.
+// Execute resolves, prints, validates and runs the sandbox. It returns the
+// command exit code. ErrNoProfile is returned without executing anything.
 func Execute(o Options) (int, error) {
 	started := time.Now()
 	if o.Stdin == nil {
@@ -67,8 +67,8 @@ func Execute(o Options) (int, error) {
 	if len(command) == 0 {
 		command = []string{"opencode", "--standalone"}
 	}
-	// --standalone é obrigatório na v1: o servidor que executa ferramentas
-	// precisa subir dentro do sandbox, nunca no serviço compartilhado do host.
+	// --standalone is required in v1: the server that runs tools must start
+	// inside the sandbox, never in the host shared service.
 	if filepath.Base(command[0]) == "opencode" && !hasArg(command[1:], "--standalone") {
 		command = append([]string{command[0], "--standalone"}, command[1:]...)
 	}
@@ -82,7 +82,8 @@ func Execute(o Options) (int, error) {
 		return 0, nil
 	}
 
-	// A config resolvida já foi impressa; falhas de preflight acontecem depois.
+	// The resolved config has already been printed; preflight failures happen
+	// later.
 	if err := sandbox.RequireBwrap(); err != nil {
 		return 1, err
 	}
@@ -114,7 +115,7 @@ func Execute(o Options) (int, error) {
 	if selfPath == "" {
 		selfPath, err = os.Executable()
 		if err != nil {
-			return 1, fmt.Errorf("descobrir binário asb: %w", err)
+			return 1, fmt.Errorf("discover asb binary: %w", err)
 		}
 	}
 	if resolved, err := filepath.EvalSymlinks(selfPath); err == nil {
@@ -136,7 +137,7 @@ func Execute(o Options) (int, error) {
 
 	bwrapPath, err := exec.LookPath("bwrap")
 	if err != nil {
-		return 1, fmt.Errorf("bwrap não encontrado no PATH: %w", err)
+		return 1, fmt.Errorf("bwrap not found in PATH: %w", err)
 	}
 
 	cmd := exec.Command(bwrapPath, args...)
@@ -152,7 +153,7 @@ func Execute(o Options) (int, error) {
 		if errors.As(err, &exitErr) {
 			return exitErr.ExitCode(), nil
 		}
-		return 1, fmt.Errorf("executar bwrap: %w", err)
+		return 1, fmt.Errorf("run bwrap: %w", err)
 	}
 	return 0, nil
 }
@@ -171,11 +172,11 @@ func buildEnv(cfg config.Resolved, layout sandbox.Layout, lookup func(string) (s
 	for _, kv := range cfg.BuildEnv(lookup) {
 		name, value, ok := strings.Cut(kv, "=")
 		if !ok {
-			return nil, fmt.Errorf("ambiente inválido: %q", kv)
+			return nil, fmt.Errorf("invalid environment: %q", kv)
 		}
 		values[name] = value
 	}
-	// HOME e XDG são definidos pela ferramenta, não herdados.
+	// HOME and XDG are set by the tool, not inherited.
 	tool := map[string]string{
 		"HOME":            layout.Home,
 		"TMPDIR":          "/tmp",
@@ -206,7 +207,7 @@ func startProxy(o Options, layout sandbox.Layout, allow []string) (*exec.Cmd, er
 	if selfPath == "" {
 		selfPath, err = os.Executable()
 		if err != nil {
-			return nil, fmt.Errorf("descobrir binário asb: %w", err)
+			return nil, fmt.Errorf("discover asb binary: %w", err)
 		}
 	}
 	if resolved, err := filepath.EvalSymlinks(selfPath); err == nil {
@@ -230,13 +231,13 @@ func startProxy(o Options, layout sandbox.Layout, allow []string) (*exec.Cmd, er
 
 	readyR, readyW, err := os.Pipe()
 	if err != nil {
-		return nil, fmt.Errorf("pipe de readiness do proxy: %w", err)
+		return nil, fmt.Errorf("proxy readiness pipe: %w", err)
 	}
 	cmd.ExtraFiles = []*os.File{readyW}
 	if err := cmd.Start(); err != nil {
 		readyR.Close()
 		readyW.Close()
-		return nil, fmt.Errorf("iniciar proxy: %w", err)
+		return nil, fmt.Errorf("start proxy: %w", err)
 	}
 	readyW.Close()
 
@@ -246,7 +247,7 @@ func startProxy(o Options, layout sandbox.Layout, allow []string) (*exec.Cmd, er
 	readyR.Close()
 	if err != nil || n != 1 || buf[0] != 'R' {
 		stopProxy(cmd)
-		return nil, fmt.Errorf("proxy não ficou pronto; falhando fechado")
+		return nil, fmt.Errorf("proxy did not become ready; failing closed")
 	}
 	return cmd, nil
 }

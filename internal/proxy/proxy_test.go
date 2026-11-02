@@ -29,7 +29,7 @@ func TestAllowed(t *testing.T) {
 	}
 	for host, want := range cases {
 		if got := Allowed(host, allow); got != want {
-			t.Errorf("Allowed(%q) = %v, esperava %v", host, got, want)
+			t.Errorf("Allowed(%q) = %v, expected %v", host, got, want)
 		}
 	}
 }
@@ -42,12 +42,12 @@ func TestDenied(t *testing.T) {
 	}
 	for _, s := range denied {
 		if !Denied(net.ParseIP(s)) {
-			t.Errorf("%s deveria ser negado", s)
+			t.Errorf("%s should be denied", s)
 		}
 	}
 	for _, s := range []string{"1.1.1.1", "8.8.8.8", "140.82.112.3"} {
 		if Denied(net.ParseIP(s)) {
-			t.Errorf("%s deveria ser permitido", s)
+			t.Errorf("%s should be allowed", s)
 		}
 	}
 }
@@ -77,20 +77,20 @@ func TestDNSResolver(t *testing.T) {
 		t.Fatal(err)
 	}
 	if len(got) != 1 || got[0].String() != "1.1.1.1" {
-		t.Fatalf("IPv4-only falhou: %v", got)
+		t.Fatalf("IPv4-only failed: %v", got)
 	}
 
 	if _, err := mk("2606:4700::1").Resolve(context.Background(), "v6.test"); !errors.Is(err, ErrNoIPv4) {
-		t.Fatalf("esperava ErrNoIPv4, veio %v", err)
+		t.Fatalf("expected ErrNoIPv4, got %v", err)
 	}
 	if _, err := mk("1.1.1.1", "127.0.0.1").Resolve(context.Background(), "rebind.test"); !errors.Is(err, ErrDeniedIP) {
-		t.Fatalf("esperava ErrDeniedIP para rebinding, veio %v", err)
+		t.Fatalf("expected ErrDeniedIP for rebinding, got %v", err)
 	}
 	if _, err := mk("169.254.169.254").Resolve(context.Background(), "metadata.test"); !errors.Is(err, ErrDeniedIP) {
-		t.Fatalf("esperava ErrDeniedIP para metadata, veio %v", err)
+		t.Fatalf("expected ErrDeniedIP for metadata, got %v", err)
 	}
 	if _, err := mk("1.1.1.1").Resolve(context.Background(), "1.1.1.1"); !errors.Is(err, ErrIPLiteral) {
-		t.Fatalf("esperava ErrIPLiteral, veio %v", err)
+		t.Fatalf("expected ErrIPLiteral, got %v", err)
 	}
 }
 
@@ -183,7 +183,7 @@ func TestConnectDenied(t *testing.T) {
 		t.Fatal(err)
 	}
 	if resp.StatusCode != http.StatusForbidden {
-		t.Fatalf("status = %d, esperava 403", resp.StatusCode)
+		t.Fatalf("status = %d, expected 403", resp.StatusCode)
 	}
 }
 
@@ -202,7 +202,7 @@ func TestIPLiteralDenied(t *testing.T) {
 		t.Fatal(err)
 	}
 	if resp.StatusCode != http.StatusForbidden {
-		t.Fatalf("status = %d, esperava 403", resp.StatusCode)
+		t.Fatalf("status = %d, expected 403", resp.StatusCode)
 	}
 }
 
