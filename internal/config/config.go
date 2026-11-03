@@ -1,7 +1,7 @@
-// Package config carrega e resolve a configuração declarativa do asb.
+// Package config loads and resolves the asb declarative configuration.
 //
-// Precedência: flag de CLI > asb.toml do projeto > config global > nenhum
-// default. Listas substituem, não fazem merge.
+// Precedence: CLI flag > project asb.toml > global config > no default.
+// Lists replace, they do not merge.
 package config
 
 import (
@@ -19,7 +19,7 @@ import (
 	"github.com/BurntSushi/toml"
 )
 
-// Profile é o perfil de rede da v1.
+// Profile is the v1 network profile.
 type Profile string
 
 const (
@@ -28,14 +28,14 @@ const (
 	ProfileAllowlist Profile = "allowlist"
 )
 
-// BaseEnvAllow é a allowlist base fechada da v1 (RFC-0001 §5.4). HOME e as
-// variáveis de proxy são definidas pela ferramenta, não herdadas.
+// BaseEnvAllow is the closed base allowlist of v1 (RFC-0001 §5.4). HOME and
+// the proxy variables are set by the tool, not inherited.
 var BaseEnvAllow = []string{
 	"PATH", "TERM", "LANG", "LC_ALL", "TZ", "USER", "LOGNAME", "SHELL",
 }
 
-// reservedEnv nunca é herdado do host, mesmo que declarado em [env] allow ou
-// em from_file: HOME e o canal de proxy são definidos pela ferramenta.
+// reservedEnv is never inherited from the host, even when declared in [env]
+// allow or in from_file: HOME and the proxy channel are set by the tool.
 var reservedEnv = map[string]bool{
 	"HOME": true, "TMPDIR": true,
 	"HTTP_PROXY": true, "HTTPS_PROXY": true, "ALL_PROXY": true, "NO_PROXY": true,
@@ -45,10 +45,10 @@ var reservedEnv = map[string]bool{
 
 var envNameRE = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
-// ErrNoProfile indica que nenhum perfil foi escolhido em nenhum nível.
-var ErrNoProfile = errors.New("nenhum perfil de rede configurado")
+// ErrNoProfile indicates that no profile was chosen at any level.
+var ErrNoProfile = errors.New("no network profile configured")
 
-// Layer é uma camada de configuração já validada.
+// Layer is a configuration layer that has already been validated.
 type Layer struct {
 	Path         string
 	Profile      *string
@@ -57,7 +57,7 @@ type Layer struct {
 	EnvFromFile  *string
 }
 
-// Overrides são as flags de CLI. Nil significa "não informado".
+// Overrides are the CLI flags. Nil means "not set".
 type Overrides struct {
 	Profile      *string
 	NetworkAllow *[]string
@@ -65,7 +65,7 @@ type Overrides struct {
 	SandboxID    *string
 }
 
-// Resolved é a configuração efetiva depois da precedência.
+// Resolved is the effective configuration after precedence.
 type Resolved struct {
 	ProjectDir   string
 	GlobalPath   string
@@ -94,20 +94,20 @@ type rawEnv struct {
 	FromFile string   `toml:"from_file"`
 }
 
-// LoadFile carrega uma camada. Retorna os.ErrNotExist se o arquivo não existir.
+// LoadFile loads a layer. Returns os.ErrNotExist if the file does not exist.
 func LoadFile(path string) (*Layer, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
 			return nil, os.ErrNotExist
 		}
-		return nil, fmt.Errorf("ler %s: %w", path, err)
+		return nil, fmt.Errorf("read %s: %w", path, err)
 	}
 
 	var raw rawFile
 	md, err := toml.Decode(string(data), &raw)
 	if err != nil {
-		return nil, fmt.Errorf("%s: TOML inválido: %w", path, err)
+		return nil, fmt.Errorf("%s: invalid TOML: %w", path, err)
 	}
 	if undecoded := md.Undecoded(); len(undecoded) > 0 {
 		keys := make([]string, 0, len(undecoded))
@@ -115,20 +115,20 @@ func LoadFile(path string) (*Layer, error) {
 			keys = append(keys, k.String())
 		}
 		sort.Strings(keys)
-		return nil, fmt.Errorf("%s: chaves desconhecidas: %s", path, strings.Join(keys, ", "))
+		return nil, fmt.Errorf("%s: unknown keys: %s", path, strings.Join(keys, ", "))
 	}
 	if !md.IsDefined("version") {
-		return nil, fmt.Errorf("%s: campo obrigatório ausente: version = 1", path)
+		return nil, fmt.Errorf("%s: missing required field: version = 1", path)
 	}
 	if raw.Version != 1 {
-		return nil, fmt.Errorf("%s: versão de config não suportada: %d (esperado 1)", path, raw.Version)
+		return nil, fmt.Errorf("%s: unsupported config version: %d (expected 1)", path, raw.Version)
 	}
 
 	layer := &Layer{Path: path}
 	if md.IsDefined("network", "profile") {
 		p := strings.TrimSpace(raw.Network.Profile)
 		if p == "" {
-			return nil, fmt.Errorf("%s: network.profile não pode ser vazio", path)
+			return nil, fmt.Errorf("%s: network.profile cannot be empty", path)
 		}
 		layer.Profile = &p
 	}
@@ -143,38 +143,38 @@ func LoadFile(path string) (*Layer, error) {
 	if md.IsDefined("env", "from_file") {
 		f := strings.TrimSpace(raw.Env.FromFile)
 		if f == "" {
-			return nil, fmt.Errorf("%s: env.from_file não pode ser vazio", path)
+			return nil, fmt.Errorf("%s: env.from_file cannot be empty", path)
 		}
 		layer.EnvFromFile = &f
 	}
 	return layer, nil
 }
 
-// GlobalPath devolve o caminho da config global.
+// GlobalPath returns the global config path.
 func GlobalPath() (string, error) {
 	base, err := os.UserConfigDir()
 	if err != nil {
-		return "", fmt.Errorf("descobrir diretório de config: %w", err)
+		return "", fmt.Errorf("discover config directory: %w", err)
 	}
 	return filepath.Join(base, "asb", "config.toml"), nil
 }
 
-// Resolve carrega global + projeto, aplica overrides e valida o resultado.
+// Resolve loads global + project, applies overrides and validates the result.
 func Resolve(projectDir string, cli Overrides) (Resolved, error) {
 	abs, err := filepath.Abs(projectDir)
 	if err != nil {
-		return Resolved{}, fmt.Errorf("resolver caminho do projeto: %w", err)
+		return Resolved{}, fmt.Errorf("resolve project path: %w", err)
 	}
 	abs, err = filepath.EvalSymlinks(abs)
 	if err != nil {
-		return Resolved{}, fmt.Errorf("resolver caminho do projeto: %w", err)
+		return Resolved{}, fmt.Errorf("resolve project path: %w", err)
 	}
 	info, err := os.Stat(abs)
 	if err != nil {
-		return Resolved{}, fmt.Errorf("projeto %s: %w", abs, err)
+		return Resolved{}, fmt.Errorf("project %s: %w", abs, err)
 	}
 	if !info.IsDir() {
-		return Resolved{}, fmt.Errorf("projeto %s não é um diretório", abs)
+		return Resolved{}, fmt.Errorf("project %s is not a directory", abs)
 	}
 
 	res := Resolved{
@@ -205,7 +205,7 @@ func Resolve(projectDir string, cli Overrides) (Resolved, error) {
 		applyLayer(&res, projectLayer)
 	}
 
-	// Default fechado: sem escolha em nenhum nível, falha.
+	// Closed default: with no choice at any level, fail.
 	if cli.Profile != nil {
 		res.Profile = Profile(strings.TrimSpace(*cli.Profile))
 	}
@@ -233,7 +233,7 @@ func Resolve(projectDir string, cli Overrides) (Resolved, error) {
 		return res, err
 	}
 	if res.Profile != ProfileAllowlist && len(res.NetworkAllow) > 0 {
-		return res, fmt.Errorf("network.allow só é válido com network.profile = \"allowlist\" (perfil atual: %s)", res.Profile)
+		return res, fmt.Errorf("network.allow is only valid with network.profile = \"allowlist\" (current profile: %s)", res.Profile)
 	}
 	res.EnvAllow, err = normalizeEnvAllow(res.EnvAllow)
 	if err != nil {
@@ -269,8 +269,8 @@ func applyLayer(res *Resolved, layer *Layer) {
 	}
 }
 
-// copyList preserva a diferença entre nil (não definido) e vazio (definido
-// como lista vazia), necessária para a regra de substituição.
+// copyList preserves the difference between nil (not set) and empty (set as
+// an empty list), which the replacement rule requires.
 func copyList(in []string) []string {
 	if in == nil {
 		return nil
@@ -280,7 +280,7 @@ func copyList(in []string) []string {
 	return out
 }
 
-// ValidateProfile valida um perfil de rede.
+// ValidateProfile validates a network profile.
 func ValidateProfile(p Profile) error {
 	return validateProfile(p)
 }
@@ -290,7 +290,7 @@ func validateProfile(p Profile) error {
 	case ProfileHost, ProfileNone, ProfileAllowlist:
 		return nil
 	default:
-		return fmt.Errorf("network.profile inválido: %q (use host, none ou allowlist)", p)
+		return fmt.Errorf("invalid network.profile: %q (use host, none or allowlist)", p)
 	}
 }
 
@@ -311,14 +311,14 @@ func normalizeAllow(in []string) ([]string, error) {
 	return out, nil
 }
 
-// NormalizeHost valida e normaliza uma entrada de allowlist. Aceita nome
-// exato (github.com) ou wildcard de subdomínio (*.example.com). IP direto não
-// é aceito: a lista é por nome de destino.
+// NormalizeHost validates and normalizes an allowlist entry. It accepts an
+// exact name (github.com) or a subdomain wildcard (*.example.com). A direct IP
+// is not accepted: the list is by destination name.
 func NormalizeHost(entry string) (string, error) {
 	h := strings.ToLower(strings.TrimSpace(entry))
 	h = strings.TrimSuffix(h, ".")
 	if h == "" {
-		return "", errors.New("network.allow: entrada vazia")
+		return "", errors.New("network.allow: empty entry")
 	}
 	wildcard := strings.HasPrefix(h, "*.")
 	body := h
@@ -326,27 +326,27 @@ func NormalizeHost(entry string) (string, error) {
 		body = strings.TrimPrefix(h, "*.")
 	}
 	if body == "" {
-		return "", fmt.Errorf("network.allow: entrada inválida %q", entry)
+		return "", fmt.Errorf("network.allow: invalid entry %q", entry)
 	}
 	if net.ParseIP(body) != nil {
-		return "", fmt.Errorf("network.allow: IP direto não é permitido (%q); use o nome do destino", entry)
+		return "", fmt.Errorf("network.allow: direct IP is not allowed (%q); use the destination name", entry)
 	}
 	if strings.ContainsAny(body, "/:@[] \t") {
-		return "", fmt.Errorf("network.allow: entrada inválida %q (use apenas nome de host)", entry)
+		return "", fmt.Errorf("network.allow: invalid entry %q (use only a host name)", entry)
 	}
 	if len(body) > 253 {
-		return "", fmt.Errorf("network.allow: hostname longo demais %q", entry)
+		return "", fmt.Errorf("network.allow: hostname too long %q", entry)
 	}
 	for _, label := range strings.Split(body, ".") {
 		if label == "" || len(label) > 63 {
-			return "", fmt.Errorf("network.allow: hostname inválido %q", entry)
+			return "", fmt.Errorf("network.allow: invalid hostname %q", entry)
 		}
 		if label[0] == '-' || label[len(label)-1] == '-' {
-			return "", fmt.Errorf("network.allow: hostname inválido %q", entry)
+			return "", fmt.Errorf("network.allow: invalid hostname %q", entry)
 		}
 		for _, r := range label {
 			if (r < 'a' || r > 'z') && (r < '0' || r > '9') && r != '-' {
-				return "", fmt.Errorf("network.allow: hostname inválido %q", entry)
+				return "", fmt.Errorf("network.allow: invalid hostname %q", entry)
 			}
 		}
 	}
@@ -359,11 +359,11 @@ func normalizeEnvAllow(in []string) ([]string, error) {
 	for _, name := range in {
 		name = strings.TrimSpace(name)
 		if !envNameRE.MatchString(name) {
-			return nil, fmt.Errorf("env.allow: nome de variável inválido %q", name)
+			return nil, fmt.Errorf("env.allow: invalid variable name %q", name)
 		}
 		if reservedEnv[name] {
-			// HOME e proxy são definidos pela ferramenta; ignorar aqui evita
-			// herdar um canal que a política não controla.
+			// HOME and proxy are set by the tool; skipping them here avoids
+			// inheriting a channel the policy does not control.
 			continue
 		}
 		if !seen[name] {
@@ -375,7 +375,7 @@ func normalizeEnvAllow(in []string) ([]string, error) {
 	return out, nil
 }
 
-// BuildEnv monta o ambiente efetivo do sandbox. Valores nunca são logados.
+// BuildEnv builds the effective sandbox environment. Values are never logged.
 func (r Resolved) BuildEnv(hostEnv func(string) (string, bool)) []string {
 	env := make(map[string]string)
 	for _, name := range r.EnvAllow {
@@ -415,17 +415,17 @@ func loadEnvFile(projectDir, configured string) (map[string]string, error) {
 	}
 	rel, err := filepath.Rel(projectDir, abs)
 	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return nil, fmt.Errorf("env.from_file: %s precisa estar dentro do projeto", configured)
+		return nil, fmt.Errorf("env.from_file: %s must be inside the project", configured)
 	}
 	info, err := os.Stat(abs)
 	if err != nil {
 		return nil, fmt.Errorf("env.from_file: %w", err)
 	}
 	if !info.Mode().IsRegular() {
-		return nil, fmt.Errorf("env.from_file: %s não é um arquivo regular", configured)
+		return nil, fmt.Errorf("env.from_file: %s is not a regular file", configured)
 	}
 	if info.Mode().Perm() != 0o600 {
-		return nil, fmt.Errorf("env.from_file: %s precisa ter permissão 0600 (atual %04o)", configured, info.Mode().Perm())
+		return nil, fmt.Errorf("env.from_file: %s must have mode 0600 (current %04o)", configured, info.Mode().Perm())
 	}
 	if err := requireGitIgnored(projectDir, rel); err != nil {
 		return nil, err
@@ -450,17 +450,17 @@ func loadEnvFile(projectDir, configured string) (map[string]string, error) {
 		}
 		name, value, ok := strings.Cut(line, "=")
 		if !ok {
-			return nil, fmt.Errorf("env.from_file: %s:%d: esperado VAR=valor", configured, lineNo)
+			return nil, fmt.Errorf("env.from_file: %s:%d: expected VAR=value", configured, lineNo)
 		}
 		name = strings.TrimSpace(name)
 		if !envNameRE.MatchString(name) {
-			return nil, fmt.Errorf("env.from_file: %s:%d: nome de variável inválido %q", configured, lineNo, name)
+			return nil, fmt.Errorf("env.from_file: %s:%d: invalid variable name %q", configured, lineNo, name)
 		}
 		if reservedEnv[name] {
-			return nil, fmt.Errorf("env.from_file: %s:%d: %s é reservada e definida pela ferramenta", configured, lineNo, name)
+			return nil, fmt.Errorf("env.from_file: %s:%d: %s is reserved and set by the tool", configured, lineNo, name)
 		}
 		if _, dup := vars[name]; dup {
-			return nil, fmt.Errorf("env.from_file: %s:%d: variável duplicada %s", configured, lineNo, name)
+			return nil, fmt.Errorf("env.from_file: %s:%d: duplicate variable %s", configured, lineNo, name)
 		}
 		vars[name] = value
 	}
@@ -472,7 +472,7 @@ func loadEnvFile(projectDir, configured string) (map[string]string, error) {
 
 func requireGitIgnored(projectDir, rel string) error {
 	if _, err := exec.LookPath("git"); err != nil {
-		return fmt.Errorf("env.from_file: git não encontrado; não é possível verificar se %s está no .gitignore", rel)
+		return fmt.Errorf("env.from_file: git not found; cannot verify whether %s is in .gitignore", rel)
 	}
 	cmd := exec.Command("git", "-C", projectDir, "check-ignore", "-q", "--", rel)
 	err := cmd.Run()
@@ -481,25 +481,25 @@ func requireGitIgnored(projectDir, rel string) error {
 	}
 	var exitErr *exec.ExitError
 	if errors.As(err, &exitErr) && exitErr.ExitCode() == 1 {
-		return fmt.Errorf("env.from_file: %s não está no .gitignore; adicione antes de usar segredos", rel)
+		return fmt.Errorf("env.from_file: %s is not in .gitignore; add it before using secrets", rel)
 	}
-	return fmt.Errorf("env.from_file: não foi possível verificar .gitignore para %s (o projeto é um repositório git?): %w", rel, err)
+	return fmt.Errorf("env.from_file: could not check .gitignore for %s (is the project a git repository?): %w", rel, err)
 }
 
-// ValidateSandboxID impede path traversal e nomes ambíguos.
+// ValidateSandboxID prevents path traversal and ambiguous names.
 func ValidateSandboxID(id string) error {
 	if id == "" {
-		return errors.New("sandbox id vazio")
+		return errors.New("empty sandbox id")
 	}
 	if len(id) > 128 {
-		return fmt.Errorf("sandbox id longo demais (máx. 128): %q", id)
+		return fmt.Errorf("sandbox id too long (max. 128): %q", id)
 	}
 	if id == "." || id == ".." || strings.HasPrefix(id, ".") {
-		return fmt.Errorf("sandbox id inválido: %q", id)
+		return fmt.Errorf("invalid sandbox id: %q", id)
 	}
 	for _, r := range id {
 		if (r < 'a' || r > 'z') && (r < 'A' || r > 'Z') && (r < '0' || r > '9') && r != '-' && r != '_' && r != '.' {
-			return fmt.Errorf("sandbox id inválido: %q (use letras, números, . _ -)", id)
+			return fmt.Errorf("invalid sandbox id: %q (use letters, numbers, . _ -)", id)
 		}
 	}
 	return nil

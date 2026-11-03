@@ -8,7 +8,7 @@
 
 ## Context
 
-The repository is Portuguese-first: `README.md`, `docs/asb.md`, ADR-0001..0004, and RFC-0001 are in Portuguese; CLI help/errors and test failure messages are Portuguese (for example `cmd/asb/main.go:115`, `internal/config/config.go:49`, `internal/proxy/allow.go:23`); code comments are Portuguese. File slugs are Portuguese as well.
+The repository was Portuguese-first: `README.md`, `docs/asb.md`, ADR-0001..0004, and RFC-0001 were in Portuguese; CLI help/errors and test failure messages were Portuguese (for example `cmd/asb/main.go:115`, `internal/config/config.go:49`, `internal/proxy/allow.go:23`); code comments were Portuguese. File slugs were Portuguese as well. The migration described below landed on 2026-11-02.
 
 This splits vocabulary between the repository and the Go/OpenCode ecosystem, adds translation work to reviews, and makes copy-paste from upstream docs and error searches less effective. There is no localization requirement: the tool has a single maintainer and no translated UI.
 
@@ -46,3 +46,4 @@ This splits vocabulary between the repository and the Go/OpenCode ecosystem, add
 |---|---|---|
 | 2026-11-01 | Initial draft | Language rule requested |
 | 2026-11-01 | Grill: English for all new artifacts including commits/PRs/issues; dedicated translation PR before RFC-0001 acceptance; rename files; review + CLI tests, no language linter | Answers from the grill |
+| 2026-11-02 | Translation migration executed: docs, CLI strings, tests, scripts, CI, and file slugs are English; the legacy metadata exemption was removed from `scripts/check-docs.sh` | Dedicated migration change for this ADR |

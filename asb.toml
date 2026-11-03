@@ -1,13 +1,13 @@
-# Configuração do próprio repositório (dogfood da v1).
-# Precedência: flag de CLI > este arquivo > $XDG_CONFIG_HOME/asb/config.toml.
+# Configuration for this repository itself (v1 dogfood).
+# Precedence: CLI flag > this file > $XDG_CONFIG_HOME/asb/config.toml.
 version = 1
 
 [network]
 # host | none | allowlist
 profile = "host"
 
-# A allowlist só vale com profile = "allowlist". Destinos são nomes de host;
-# "*." casa subdomínios, não o apex.
+# The allowlist only applies with profile = "allowlist". Destinations are host
+# names; "*." matches subdomains, not the apex.
 # allow = [
 #   "github.com",
 #   "registry.npmjs.org",
@@ -16,6 +16,6 @@ profile = "host"
 # ]
 
 [env]
-# A lista base da v1 é PATH, TERM, LANG, LC_ALL, TZ, USER, LOGNAME, SHELL.
-# Declarar [env] allow substitui a lista (não faz merge).
+# The v1 base list is PATH, TERM, LANG, LC_ALL, TZ, USER, LOGNAME, SHELL.
+# Declaring [env] allow replaces the list (it does not merge).
 # allow = ["PATH", "TERM", "LANG", "LC_ALL", "TZ", "USER", "LOGNAME", "SHELL"]

@@ -45,11 +45,11 @@ func TestBuildEnvToolDefinedWins(t *testing.T) {
 		"API_KEY=secret-value",
 	} {
 		if !strings.Contains(joined, want) {
-			t.Fatalf("faltou %q em:\n%s", want, joined)
+			t.Fatalf("missing %q in:\n%s", want, joined)
 		}
 	}
 	if strings.Contains(joined, "evil") {
-		t.Fatalf("HTTP_PROXY do host vazou:\n%s", joined)
+		t.Fatalf("host HTTP_PROXY leaked:\n%s", joined)
 	}
 }
 
@@ -72,11 +72,11 @@ func TestPrintConfigDoesNotLeakValues(t *testing.T) {
 	PrintConfig(&out, cfg, layout, []string{"opencode", "--standalone"})
 	text := out.String()
 	if strings.Contains(text, "ghp_supersecret") {
-		t.Fatalf("valor de segredo impresso:\n%s", text)
+		t.Fatalf("secret value printed:\n%s", text)
 	}
-	for _, want := range []string{"perfil de rede: allowlist", "github.com", "GITHUB_TOKEN", "opencode --standalone"} {
+	for _, want := range []string{"network profile: allowlist", "github.com", "GITHUB_TOKEN", "opencode --standalone"} {
 		if !strings.Contains(text, want) {
-			t.Fatalf("faltou %q:\n%s", want, text)
+			t.Fatalf("missing %q:\n%s", want, text)
 		}
 	}
 }

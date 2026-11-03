@@ -9,21 +9,23 @@ import (
 	"time"
 )
 
-// ErrDeniedHost indica destino fora da allowlist.
-var ErrDeniedHost = errors.New("host fora da allowlist")
+// ErrDeniedHost indicates a destination outside the allowlist.
+var ErrDeniedHost = errors.New("host outside the allowlist")
 
-// ErrDeniedIP indica que o destino resolveu para IP privado, link-local,
-// loopback, metadata ou outro intervalo bloqueado (proteção contra rebinding).
-var ErrDeniedIP = errors.New("destino resolveu para IP bloqueado")
+// ErrDeniedIP indicates that the destination resolved to a private IP,
+// link-local, loopback, metadata or another blocked range (protection against
+// rebinding).
+var ErrDeniedIP = errors.New("destination resolved to a blocked IP")
 
-// ErrNoIPv4 indica host sem registro A; o proxy é IPv4-only e falha fechado.
-var ErrNoIPv4 = errors.New("host sem endereço IPv4")
+// ErrNoIPv4 indicates a host with no A record; the proxy is IPv4-only and
+// fails closed.
+var ErrNoIPv4 = errors.New("host without an IPv4 address")
 
-// ErrIPLiteral indica tentativa de usar IP direto na allowlist.
-var ErrIPLiteral = errors.New("IP direto não é permitido")
+// ErrIPLiteral indicates an attempt to use a direct IP in the allowlist.
+var ErrIPLiteral = errors.New("direct IP is not allowed")
 
-// Allowed informa se host casa com a lista. Entradas exatas casam o próprio
-// host; entradas "*.example.com" casam subdomínios, não o apex.
+// Allowed reports whether host matches the list. Exact entries match the host
+// itself; "*.example.com" entries match subdomains, not the apex.
 func Allowed(host string, allow []string) bool {
 	host = normalizeHost(host)
 	if host == "" {
@@ -52,21 +54,21 @@ func normalizeHost(host string) string {
 	return strings.TrimSuffix(strings.ToLower(strings.TrimSpace(host)), ".")
 }
 
-// Resolver resolve nomes e aplica a política de IP. A interface permite
-// injetar DNS nos testes.
+// Resolver resolves names and applies the IP policy. The interface allows
+// injecting DNS in tests.
 type Resolver interface {
 	Resolve(ctx context.Context, host string) ([]net.IP, error)
 }
 
-// LookupFunc é a assinatura de net.Resolver.LookupIPAddr.
+// LookupFunc is the signature of net.Resolver.LookupIPAddr.
 type LookupFunc func(ctx context.Context, host string) ([]net.IPAddr, error)
 
-// DNSResolver resolve apenas IPv4 e falha fechado se qualquer resposta for
-// privada. O IP resolvido é o mesmo que será discado (sem re-resolução),
-// fechando a janela de DNS rebinding.
+// DNSResolver resolves only IPv4 and fails closed if any response is private.
+// The resolved IP is the same one that will be dialed (no re-resolution),
+// closing the DNS rebinding window.
 type DNSResolver struct {
 	Lookup LookupFunc
-	// Timeout limita a resolução; zero usa 10s.
+	// Timeout limits resolution; zero uses 10s.
 	Timeout time.Duration
 }
 
@@ -115,7 +117,7 @@ var deniedNets = mustParseCIDRs(
 	"198.18.0.0/15",   // benchmarking
 	"198.51.100.0/24", // TEST-NET-2
 	"203.0.113.0/24",  // TEST-NET-3
-	"240.0.0.0/4",     // reservado
+	"240.0.0.0/4",     // reserved
 )
 
 func mustParseCIDRs(cidrs ...string) []*net.IPNet {
@@ -130,7 +132,8 @@ func mustParseCIDRs(cidrs ...string) []*net.IPNet {
 	return out
 }
 
-// Denied decide se um IP não pode ser destino. IPv6 é sempre negado na v1.
+// Denied decides whether an IP cannot be a destination. IPv6 is always denied
+// in v1.
 func Denied(ip net.IP) bool {
 	ip4 := ip.To4()
 	if ip4 == nil {

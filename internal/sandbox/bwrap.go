@@ -11,32 +11,32 @@ import (
 	"github.com/gustavoxffff/agentsandboxing/internal/config"
 )
 
-// Options descreve uma execução do bwrap.
+// Options describes a bwrap execution.
 type Options struct {
 	ProjectDir string
 	Profile    config.Profile
 	Layout     Layout
-	Env        []string // KEY=VALUE já filtrado (sem proxy; o bridge define no allowlist)
-	Command    []string // comando e argumentos; o caminho é resolvido aqui
-	SelfPath   string   // binário asb, montado read-only no allowlist
-	ResolvDest string   // alvo real de /etc/resolv.conf no host
+	Env        []string // KEY=VALUE already filtered (no proxy; the bridge sets it in allowlist)
+	Command    []string // command and arguments; the path is resolved here
+	SelfPath   string   // asb binary, mounted read-only in allowlist
+	ResolvDest string   // real target of /etc/resolv.conf on the host
 }
 
-// BuildArgs monta os argumentos completos do bwrap, terminando no comando.
+// BuildArgs builds the complete bwrap arguments, ending in the command.
 func BuildArgs(o Options) ([]string, error) {
 	if len(o.Command) == 0 {
-		return nil, fmt.Errorf("comando vazio")
+		return nil, fmt.Errorf("empty command")
 	}
 	if o.Layout.Home == "" {
-		return nil, fmt.Errorf("layout sem HOME")
+		return nil, fmt.Errorf("layout without HOME")
 	}
 	project, err := filepath.Abs(o.ProjectDir)
 	if err != nil {
-		return nil, fmt.Errorf("resolver projeto: %w", err)
+		return nil, fmt.Errorf("resolve project: %w", err)
 	}
 
 	args := []string{
-		// Sistema base somente leitura.
+		// Read-only base system.
 		"--ro-bind", "/usr", "/usr",
 		"--ro-bind", "/etc", "/etc",
 	}
@@ -47,17 +47,17 @@ func BuildArgs(o Options) ([]string, error) {
 		"--tmpfs", "/tmp",
 		"--tmpfs", "/run",
 
-		// HOME efêmero.
+		// Ephemeral HOME.
 		"--tmpfs", o.Layout.Home,
 
-		// Projeto em leitura/escrita.
+		// Project read/write.
 		"--bind", project, project,
 
-		// Estado do OpenCode por sandbox (nunca o estado global do host).
+		// Per-sandbox OpenCode state (never the host global state).
 		"--bind", o.Layout.HostRoot, o.Layout.InsideRoot,
 	)
 
-	// Git sem SSH: só o .gitconfig, se existir.
+	// Git without SSH: only .gitconfig, if it exists.
 	if gitconfig := filepath.Join(o.Layout.Home, ".gitconfig"); fileExists(gitconfig) {
 		args = append(args, "--ro-bind", gitconfig, gitconfig)
 	}
@@ -74,7 +74,7 @@ func BuildArgs(o Options) ([]string, error) {
 
 	if o.Profile == config.ProfileAllowlist {
 		if o.SelfPath == "" {
-			return nil, fmt.Errorf("perfil allowlist exige o caminho do binário asb")
+			return nil, fmt.Errorf("allowlist profile requires the path to the asb binary")
 		}
 		args = append(args,
 			"--ro-bind", o.SelfPath, o.Layout.InsideBinary,
@@ -87,7 +87,7 @@ func BuildArgs(o Options) ([]string, error) {
 		}, command...)
 	}
 
-	// resolv.conf: monta sobre o alvo real do symlink (WSL e systemd-resolved).
+	// resolv.conf: mount over the real target of the symlink (WSL and systemd-resolved).
 	if o.ResolvDest != "" {
 		if dir := filepath.Dir(o.ResolvDest); needsDir(dir, o.Layout.Home) {
 			args = append(args, "--dir", dir)
@@ -95,7 +95,7 @@ func BuildArgs(o Options) ([]string, error) {
 		args = append(args, "--file", "3", o.ResolvDest)
 	}
 
-	// Isolamento de processos/namespace.
+	// Process/namespace isolation.
 	args = append(args,
 		"--unshare-pid",
 		"--unshare-ipc",
@@ -109,14 +109,14 @@ func BuildArgs(o Options) ([]string, error) {
 		args = append(args, "--unshare-net")
 	}
 
-	// Ambiente fechado: nada do host entra sem estar na allowlist.
+	// Closed environment: nothing from the host enters unless it is in the allowlist.
 	args = append(args, "--clearenv")
 	env := append([]string(nil), o.Env...)
 	sort.Strings(env)
 	for _, kv := range env {
 		name, value, ok := strings.Cut(kv, "=")
 		if !ok || name == "" {
-			return nil, fmt.Errorf("variável de ambiente inválida: %q", kv)
+			return nil, fmt.Errorf("invalid environment variable: %q", kv)
 		}
 		args = append(args, "--setenv", name, value)
 	}
@@ -149,10 +149,10 @@ func resolveCommand(name string) (string, error) {
 	if strings.ContainsRune(name, filepath.Separator) {
 		abs, err := filepath.Abs(name)
 		if err != nil {
-			return "", fmt.Errorf("resolver comando: %w", err)
+			return "", fmt.Errorf("resolve command: %w", err)
 		}
 		if !fileExists(abs) {
-			return "", fmt.Errorf("comando não encontrado: %s", name)
+			return "", fmt.Errorf("command not found: %s", name)
 		}
 		if resolved, err := filepath.EvalSymlinks(abs); err == nil {
 			abs = resolved
@@ -161,11 +161,11 @@ func resolveCommand(name string) (string, error) {
 	}
 	path, err := exec.LookPath(name)
 	if err != nil {
-		return "", fmt.Errorf("comando não encontrado no host: %s", name)
+		return "", fmt.Errorf("command not found on the host: %s", name)
 	}
 	abs, err := filepath.Abs(path)
 	if err != nil {
-		return "", fmt.Errorf("resolver comando: %w", err)
+		return "", fmt.Errorf("resolve command: %w", err)
 	}
 	if resolved, err := filepath.EvalSymlinks(abs); err == nil {
 		abs = resolved
@@ -173,9 +173,9 @@ func resolveCommand(name string) (string, error) {
 	return abs, nil
 }
 
-// extraCommandMount devolve o caminho que precisa ser remontado para que o
-// comando exista dentro do sandbox. O HOME e /tmp são tmpfs, e o perfil base
-// só monta /usr, /etc, /bin, /sbin, /lib e /lib64.
+// extraCommandMount returns the path that must be remounted so that the
+// command exists inside the sandbox. HOME and /tmp are tmpfs, and the base
+// profile only mounts /usr, /etc, /bin, /sbin, /lib and /lib64.
 func extraCommandMount(commandPath, project string, layout Layout) (string, bool) {
 	if underDir(commandPath, project) || underDir(commandPath, layout.HostRoot) {
 		return "", false
@@ -221,7 +221,7 @@ func fileExists(path string) bool {
 	return err == nil && !info.IsDir()
 }
 
-// ResolvDestination devolve o alvo real de /etc/resolv.conf no host.
+// ResolvDestination returns the real target of /etc/resolv.conf on the host.
 func ResolvDestination() string {
 	if resolved, err := filepath.EvalSymlinks("/etc/resolv.conf"); err == nil {
 		return resolved

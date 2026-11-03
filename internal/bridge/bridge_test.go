@@ -70,10 +70,10 @@ func TestServeForwardsToUnixSocket(t *testing.T) {
 			t.Fatal(err)
 		}
 		if code != 0 {
-			t.Fatalf("código = %d", code)
+			t.Fatalf("code = %d", code)
 		}
 	case <-time.After(5 * time.Second):
-		t.Fatal("bridge não terminou")
+		t.Fatal("bridge did not finish")
 	}
 }
 
@@ -86,7 +86,7 @@ func TestWithProxyEnvReplacesInheritedValues(t *testing.T) {
 	}, 4321)
 	joined := strings.Join(env, "\n")
 	if strings.Contains(joined, "evil") || strings.Contains(joined, "NO_PROXY=*") {
-		t.Fatalf("valores herdados não foram substituídos:\n%s", joined)
+		t.Fatalf("inherited values were not replaced:\n%s", joined)
 	}
 	for _, want := range []string{
 		"HTTP_PROXY=http://127.0.0.1:4321",
@@ -95,10 +95,10 @@ func TestWithProxyEnvReplacesInheritedValues(t *testing.T) {
 		"NODE_USE_ENV_PROXY=1",
 	} {
 		if !strings.Contains(joined, want) {
-			t.Fatalf("faltou %q:\n%s", want, joined)
+			t.Fatalf("missing %q:\n%s", want, joined)
 		}
 	}
 	if !strings.Contains(joined, "PATH=/usr/bin") {
-		t.Fatalf("PATH perdido:\n%s", joined)
+		t.Fatalf("PATH lost:\n%s", joined)
 	}
 }

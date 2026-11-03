@@ -10,24 +10,24 @@ import (
 	"github.com/gustavoxffff/agentsandboxing/internal/sandbox"
 )
 
-// PrintConfig imprime a configuração resolvida para auditoria. Nunca imprime
-// valores de segredos, apenas nomes de variáveis.
+// PrintConfig prints the resolved configuration for auditing. It never prints
+// secret values, only variable names.
 func PrintConfig(w io.Writer, cfg config.Resolved, layout sandbox.Layout, command []string) {
-	fmt.Fprintln(w, "asb: configuração resolvida")
-	fmt.Fprintf(w, "  projeto: %s\n", cfg.ProjectDir)
+	fmt.Fprintln(w, "asb: resolved configuration")
+	fmt.Fprintf(w, "  project: %s\n", cfg.ProjectDir)
 	if cfg.GlobalPath != "" {
-		fmt.Fprintf(w, "  config global: %s\n", cfg.GlobalPath)
+		fmt.Fprintf(w, "  global config: %s\n", cfg.GlobalPath)
 	} else {
-		fmt.Fprintln(w, "  config global: (nenhuma)")
+		fmt.Fprintln(w, "  global config: (none)")
 	}
 	if cfg.ProjectPath != "" {
-		fmt.Fprintf(w, "  config do projeto: %s\n", cfg.ProjectPath)
+		fmt.Fprintf(w, "  project config: %s\n", cfg.ProjectPath)
 	} else {
-		fmt.Fprintln(w, "  config do projeto: (nenhuma)")
+		fmt.Fprintln(w, "  project config: (none)")
 	}
-	fmt.Fprintf(w, "  perfil de rede: %s\n", cfg.Profile)
-	fmt.Fprintf(w, "  garantia: %s\n", guarantee(cfg.Profile))
-	fmt.Fprintf(w, "  rede.allow: %s\n", joinOrNone(cfg.NetworkAllow))
+	fmt.Fprintf(w, "  network profile: %s\n", cfg.Profile)
+	fmt.Fprintf(w, "  guarantee: %s\n", guarantee(cfg.Profile))
+	fmt.Fprintf(w, "  network.allow: %s\n", joinOrNone(cfg.NetworkAllow))
 	fmt.Fprintf(w, "  env.allow: %s\n", joinOrNone(cfg.EnvAllow))
 	if cfg.EnvFromFile != "" {
 		names := make([]string, 0, len(cfg.FromFileVars))
@@ -35,34 +35,34 @@ func PrintConfig(w io.Writer, cfg config.Resolved, layout sandbox.Layout, comman
 			names = append(names, name)
 		}
 		sort.Strings(names)
-		fmt.Fprintf(w, "  env.from_file: %s (variáveis: %s)\n", cfg.EnvFromFile, joinOrNone(names))
+		fmt.Fprintf(w, "  env.from_file: %s (variables: %s)\n", cfg.EnvFromFile, joinOrNone(names))
 	}
 	fmt.Fprintf(w, "  sandbox id: %s\n", layout.ID)
-	fmt.Fprintf(w, "  estado (host): %s\n", layout.HostOpencodeRoot)
-	fmt.Fprintf(w, "  estado (sandbox): %s\n", layout.InsideRoot)
+	fmt.Fprintf(w, "  state (host): %s\n", layout.HostOpencodeRoot)
+	fmt.Fprintf(w, "  state (sandbox): %s\n", layout.InsideRoot)
 	if cfg.Profile == config.ProfileAllowlist {
 		fmt.Fprintf(w, "  proxy (socket): %s\n", layout.ProxySocket)
-		fmt.Fprintln(w, "  proxy: bridge TCP→Unix dentro do sandbox; egress direto bloqueado")
+		fmt.Fprintln(w, "  proxy: TCP→Unix bridge inside the sandbox; direct egress blocked")
 	}
-	fmt.Fprintf(w, "  comando: %s\n", strings.Join(command, " "))
+	fmt.Fprintf(w, "  command: %s\n", strings.Join(command, " "))
 }
 
 func guarantee(p config.Profile) string {
 	switch p {
 	case config.ProfileHost:
-		return "rede do host (sem isolamento de rede)"
+		return "host network (no network isolation)"
 	case config.ProfileNone:
-		return "apenas loopback; nenhuma conexão externa"
+		return "loopback only; no external connection"
 	case config.ProfileAllowlist:
-		return "só destinos da allowlist, via proxy; egress direto bloqueado"
+		return "allowlist destinations only, via proxy; direct egress blocked"
 	default:
-		return "desconhecida"
+		return "unknown"
 	}
 }
 
 func joinOrNone(items []string) string {
 	if len(items) == 0 {
-		return "(nenhum)"
+		return "(none)"
 	}
 	return strings.Join(items, ", ")
 }
