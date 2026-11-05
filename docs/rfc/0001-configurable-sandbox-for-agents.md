@@ -1,10 +1,10 @@
 # RFC-0001: Go agent sandbox with network policy and routing (v1)
 
-- **Status:** Draft (revision of 2026-11-01)
+- **Status:** In review
 - **Author(s):** Gustavo
 - **Reviewers:** Gustavo (self-review)
-- **Date:** 2026-10-29 (creation); 2026-11-01 (grill revision)
-- **Feedback deadline:** 2026-11-03
+- **Date:** 2026-10-29 (creation); 2026-11-01 (grill revision); 2026-11-03 (deadline extension)
+- **Feedback deadline:** 2026-11-08 (extended from 2026-11-03: ADR-0004 open question 1 needs an OpenCode plugin API spike before acceptance)
 - **Decision review:** 2 weeks after dogfood starts, which begins after the `allowlist` gate
 - **Related ADR:** [ADR-0001](../adr/0001-sandbox-opencode-com-bwrap.md)
 - **Supersedes / Related:** [ADR-0002](../adr/0002-per-sandbox-state-and-credentials.md), [ADR-0003](../adr/0003-pinned-skills-and-snapshot.md), [ADR-0004](../adr/0004-quality-gate-hooks.md); supersession: N/A
@@ -377,6 +377,13 @@ The decisions above are design decisions; the implementation and corresponding t
 | 8 | Go as the stack | Kept: single binary, no daemon | ADR-0001 |
 | 9 | Base env allowlist | 8 variables + `HOME` and proxy defined by the tool | §5.4 |
 
+**Recorded on 2026-11-03 (drift per ADR-0005, evidence in RFC-0002 §2.2):**
+
+| # | Drift | Resolution | Evidence |
+|---|---|---|---|
+| 1 | The `opencode-sandbox` wrapper still existed and added `--profile host` without `asb.toml` | **Fixed:** wrapper removed; `asb run` is the only entry point | red/green run of `internal/run/legacy_wrapper_test.go`; SHA-256 `6c8a05a4f54d72a6b7c31de4b2876c95fd12b8c632b39138fb0eacc7b7715786` |
+| 2 | ADR-0001/RFC-0001 describe `asb exec` delivering env by fd/file; the CLI has no `exec` subcommand and values still reach the `bwrap` argv via `--setenv` | **Recorded:** implementation pending; tracked as ADR-0001 open question 6, blocks the `allowlist` release, not this RFC's acceptance | `cmd/asb/main.go` subcommands; `internal/sandbox/bwrap.go:121` |
+
 **Still open:**
 
 | # | Question | Owner | Blocks? | Due |
@@ -387,8 +394,9 @@ The decisions above are design decisions; the implementation and corresponding t
 | 4 | OpenCode version pinned in the CI matrix | Gustavo | No | before green CI |
 | 5 | How to test host writes without depending on the user's absolute path | Gustavo | No | before the `allowlist` release |
 | 6 | Residual risk of `unshare -Urn` if a device/tun appears in the future | Gustavo | No | dogfood review |
+| 7 | ADR-0004 open question 1: blocking semantics in `execute.after` and `Tool.Error` construction (OpenCode plugin API spike) | Gustavo | **Yes, blocks RFC-0001 acceptance** | 2026-11-08 |
 
-No question blocks the v1 design. The `allowlist` release depends on the automated matrix and the decisions already recorded, not on an open question.
+No question blocks the v1 design. Question 7 blocks **acceptance of this RFC**, not the design: the spike must confirm ADR-0004's blocking semantics before the linked ADRs freeze. The `allowlist` release depends on the automated matrix and the decisions already recorded, not on an open question.
 
 ## 12. Questions for reviewers
 
@@ -427,3 +435,4 @@ No question blocks the v1 design. The `allowlist` release depends on the automat
 |---|---|---|
 | 2026-10-29 | RFC created from the rescoped ADR-0001; `asb`/`asb.toml`, precedence, base env allowlist, repeated matrix (npm/pip), script migration, and startup without a numeric target | RFC generated from the ADR corrected by the grill |
 | 2026-11-01 | Grill revision: wrapper/legacy removed; env through fd/file; `[git]` `minimal`/`manual`/`off`; expanded `allowlist` gate (git, Node, OpenCode, rebinding, NAT, `--clearenv`, `--standalone`, host writes, argv); dogfood after the gate; `/tmp/asb-<uid>/<hash>` socket; two-part startup; target-profile preflight; WSL non-blocking | ADR-0001 and RFC-0001 revision with code, test, smoke, and `/proc/<pid>/cmdline` evidence |
+| 2026-11-03 | Status → `In review`; feedback deadline extended to 2026-11-08; wrapper drift fixed with regression test (red/green, SHA-256 recorded in §11); `asb exec` drift recorded in §11; ADR-0004 Q1 added as blocking question 7 | ADR-0005 deadline closure: ADR-0004 Q1 spike pending; acceptance deferred, never partial |

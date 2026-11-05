@@ -80,3 +80,53 @@ func TestPrintConfigDoesNotLeakValues(t *testing.T) {
 		}
 	}
 }
+
+// TestPrintConfigBranches asserts every conditional branch of PrintConfig so
+// that negating any of them changes the output (mutation gate, ADR-0007).
+func TestPrintConfigBranches(t *testing.T) {
+	layout := sandbox.Layout{
+		ID:               "proj-1",
+		HostOpencodeRoot: "/state/opencode",
+		InsideRoot:       "/home/user/.local/state/asb/sandboxes/proj-1",
+		ProxySocket:      "/run/asb/proxy.sock",
+	}
+
+	// Set global/project paths and an allowlist profile: the positive branches
+	// must print the values and the proxy lines.
+	full := config.Resolved{
+		ProjectDir:  "/proj",
+		GlobalPath:  "/home/user/.config/asb/config.toml",
+		ProjectPath: "/proj/asb.toml",
+		Profile:     config.ProfileAllowlist,
+	}
+	var out bytes.Buffer
+	PrintConfig(&out, full, layout, []string{"opencode"})
+	text := out.String()
+	for _, want := range []string{
+		"global config: /home/user/.config/asb/config.toml",
+		"project config: /proj/asb.toml",
+		"proxy (socket): /run/asb/proxy.sock",
+	} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("missing %q:\n%s", want, text)
+		}
+	}
+
+	// Empty paths and a non-allowlist profile: the negative branches must
+	// print "(none)" and must not print the proxy lines.
+	empty := config.Resolved{
+		ProjectDir: "/proj",
+		Profile:    config.ProfileHost,
+	}
+	out.Reset()
+	PrintConfig(&out, empty, layout, []string{"opencode"})
+	text = out.String()
+	for _, want := range []string{"global config: (none)", "project config: (none)"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("missing %q:\n%s", want, text)
+		}
+	}
+	if strings.Contains(text, "proxy (socket)") {
+		t.Fatalf("proxy lines printed for a non-allowlist profile:\n%s", text)
+	}
+}

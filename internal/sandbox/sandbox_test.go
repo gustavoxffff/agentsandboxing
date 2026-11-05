@@ -208,3 +208,20 @@ func TestResolvContent(t *testing.T) {
 		t.Fatalf("host: %q", got)
 	}
 }
+
+func TestResolvFileReportsTempDirFailure(t *testing.T) {
+	// A missing temporary directory makes os.CreateTemp fail.
+	t.Setenv("TMPDIR", filepath.Join(t.TempDir(), "missing"))
+
+	f, err := ResolvFile("nameserver 127.0.0.1\n")
+	if err == nil {
+		if f != nil {
+			f.Close()
+		}
+		t.Fatal("ResolvFile must fail when the temporary directory does not exist")
+	}
+	if f != nil {
+		f.Close()
+		t.Fatal("ResolvFile must not return a file when it fails")
+	}
+}

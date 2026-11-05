@@ -2,17 +2,38 @@ package proxy
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
+
+// syncBuffer collects proxy log lines safely while the proxy serves.
+type syncBuffer struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (b *syncBuffer) Write(p []byte) (int, error) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.Write(p)
+}
+
+func (b *syncBuffer) String() string {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.buf.String()
+}
 
 func TestAllowed(t *testing.T) {
 	allow := []string{"github.com", "*.example.com"}
@@ -232,5 +253,57 @@ func TestHTTPForward(t *testing.T) {
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != 200 || string(body) != "world" {
 		t.Fatalf("status=%d body=%q", resp.StatusCode, body)
+	}
+}
+
+func TestDialFailureIsDenied(t *testing.T) {
+	// Reserve a port and release it so the upstream dial is refused.
+	reserved, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, port, err := net.SplitHostPort(reserved.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = reserved.Close()
+
+	logs := &syncBuffer{}
+	p := &Proxy{
+		Allow:    []string{"allowed.test"},
+		Resolver: staticResolver{ips: []net.IP{net.ParseIP("127.0.0.1")}},
+		Logger:   log.New(logs, "", 0),
+	}
+	l, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := make(chan struct{})
+	go func() {
+		_ = p.Serve(l)
+		close(done)
+	}()
+	defer func() {
+		_ = l.Close()
+		<-done
+	}()
+
+	conn, err := net.Dial("tcp4", l.Addr().String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	_ = conn.SetDeadline(time.Now().Add(5 * time.Second))
+	fmt.Fprintf(conn, "CONNECT allowed.test:%s HTTP/1.1\r\nHost: allowed.test:%s\r\n\r\n", port, port)
+	resp, err := http.ReadResponse(bufio.NewReader(conn), &http.Request{Method: http.MethodConnect})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("status = %d, expected 403", resp.StatusCode)
+	}
+	if got := logs.String(); !strings.Contains(got, "DENY allowed.test failed to connect") {
+		t.Fatalf("log = %q, want the dial failure to be denied", got)
 	}
 }

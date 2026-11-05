@@ -14,11 +14,12 @@ state per sandbox.
 ## Status (2026-10-29)
 
 Phases 1 and 2 are implemented: CLI/config, `host`/`none` profiles, XDG per
-sandbox, `--clearenv`/`--standalone`, the `allowlist` proxy/bridge, and the
-wrapper. The local matrix passed on `bwrap 0.13.1`/WSL (curl, git, Node,
-metadata, rebinding, QUIC, direct IP, tun/mknod/caps). npm/pip were not
-installed on the local host and were covered by CI, which installs the
-toolchains and runs the same matrix.
+sandbox, `--clearenv`/`--standalone`, and the `allowlist` proxy/bridge. The
+legacy `opencode-sandbox` wrapper was removed on 2026-11-03 (ADR-0001):
+`asb run` is the only entry point. The local matrix passed on `bwrap
+0.13.1`/WSL (curl, git, Node, metadata, rebinding, QUIC, direct IP,
+tun/mknod/caps). npm/pip were not installed on the local host and were
+covered by CI, which installs the toolchains and runs the same matrix.
 **`allowlist` remains conditioned on green CI** (the RFC-0001 §5.3 gate).
 
 ## Configuration
@@ -172,7 +173,8 @@ default.
 allowed connections; denials are always logged.
 
 **I need the old behavior.** Restore `opencode-sandbox` from commit
-`8d97c44`. The new wrapper does not silently fall back to the old script.
+`8d97c44`. The wrapper was removed in v1: there is no fallback to the old
+script and no implicit `--profile host`.
 
 ## Known limitations
 

@@ -24,8 +24,8 @@ The repository's RFCs and ADRs currently duplicate each other: both contain cont
 
 ### 2.2 Drift that the current process did not catch
 
-- ADR-0001 says the `opencode-sandbox` wrapper and the legacy fallback were removed, and that there is no implicit `--profile host` (ADR-0001 §"Decision" line 86; RFC-0001 §5.2 line 118). The wrapper still exists and adds `--profile host` when `asb.toml` is absent (`opencode-sandbox:19-21`).
-- ADR-0001 and RFC-0001 describe `asb exec` as the mechanism that delivers environment values by fd/file (ADR-0001 §"Decision"; RFC-0001 §5.2 and §5.4). The CLI has no `exec` subcommand (`cmd/asb/main.go:37-52`).
+- ADR-0001 says the `opencode-sandbox` wrapper and the legacy fallback were removed, and that there is no implicit `--profile host` (ADR-0001 §"Decision" line 86; RFC-0001 §5.2 line 118). The wrapper still existed and added `--profile host` when `asb.toml` was absent (`opencode-sandbox:19-21`). **Fixed on 2026-11-03:** the wrapper was removed with a regression test (RFC-0001 §11).
+- ADR-0001 and RFC-0001 describe `asb exec` as the mechanism that delivers environment values by fd/file (ADR-0001 §"Decision"; RFC-0001 §5.2 and §5.4). The CLI has no `exec` subcommand (`cmd/asb/main.go:37-52`). **Recorded on 2026-11-03:** implementation pending, tracked as ADR-0001 open question 6 (RFC-0001 §11).
 - These are factual contradictions, not open design questions. They are evidence that a decision record without an explicit acceptance/freeze step does not stay aligned with the code.
 
 ### 2.3 Language
@@ -255,11 +255,18 @@ This RFC is accepted when all of the following are true:
 
 ## 11. Open questions
 
+**Resolved on 2026-11-03:**
+
+| # | Question | Resolution | Evidence |
+|---|---|---|---|
+| 1 | New deadline and acceptance date for RFC-0001 after the drift is fixed or recorded | Deadline extended to 2026-11-08; wrapper drift fixed, `asb exec` drift recorded (RFC-0001 §11) | RFC-0001 status `In review`; `internal/run/legacy_wrapper_test.go` red/green |
+| 3 | Translation PR sequencing and reviewer | Translation landed on 2026-11-02, before any acceptance; reviewer Gustavo (self-review, single maintainer) | Commit `a1731ba` |
+
+**Still open:**
+
 | # | Question | Owner | Blocks approval? | Due |
 |---|---|---|---|---|
-| 1 | New deadline and acceptance date for RFC-0001 after the drift is fixed or recorded | Gustavo | Blocks RFC-0001, not RFC-0002 | 2026-11-08 |
 | 2 | Exact CI metadata/link check: script vs. action; required fields | Gustavo | No | 2026-11-08 |
-| 3 | Translation PR sequencing and reviewer | Gustavo | Blocks RFC-0001 acceptance | 2026-11-08 |
 | 4 | Gremlins `--diff` base in CI (`origin/main` vs. merge-base) and fork behavior | Gustavo | No | 2026-11-08 |
 | 5 | Where to record equivalent mutants | Gustavo | No | 2026-11-15 |
 | 6 | CI runtime of Gremlins; threshold for falling back to weekly only | Gustavo | No | After the first CI run |
@@ -297,3 +304,4 @@ This RFC is accepted when all of the following are true:
 | Date | Change | Reason |
 |---|---|---|
 | 2026-11-01 | Initial RFC generated from the grilled ADR-0005/6/7 | Process change request; bootstrapped because the new workflow did not exist |
+| 2026-11-03 | Open questions 1 and 3 resolved (RFC-0001 deadline extended to 2026-11-08 with drift fixed/recorded; translation landed in `a1731ba`) | Deadline closure work for RFC-0001 per ADR-0005 |
