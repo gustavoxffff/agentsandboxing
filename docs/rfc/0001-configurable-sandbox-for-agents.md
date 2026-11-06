@@ -4,7 +4,7 @@
 - **Author(s):** Gustavo
 - **Reviewers:** Gustavo (self-review)
 - **Date:** 2026-10-29 (creation); 2026-11-01 (grill revision); 2026-11-03 (deadline extension); 2026-11-05 (plugin spike)
-- **Feedback deadline:** 2026-11-08 (extended from 2026-11-03 for the ADR-0004 open question 1 spike; the spike resolved it on 2026-11-05)
+- **Feedback deadline:** 2026-11-15 (extended from 2026-11-08 to close together with RFC-0002; the ADR-0004 open question 1 spike that caused the earlier extension was resolved on 2026-11-05)
 - **Decision review:** 2 weeks after dogfood starts, which begins after the `allowlist` gate
 - **Related ADR:** [ADR-0001](../adr/0001-sandbox-opencode-com-bwrap.md)
 - **Supersedes / Related:** [ADR-0002](../adr/0002-per-sandbox-state-and-credentials.md), [ADR-0003](../adr/0003-pinned-skills-and-snapshot.md), [ADR-0004](../adr/0004-quality-gate-hooks.md); supersession: N/A
@@ -442,3 +442,4 @@ No open question blocks the v1 design or acceptance of this RFC; the remaining q
 | 2026-11-01 | Grill revision: wrapper/legacy removed; env through fd/file; `[git]` `minimal`/`manual`/`off`; expanded `allowlist` gate (git, Node, OpenCode, rebinding, NAT, `--clearenv`, `--standalone`, host writes, argv); dogfood after the gate; `/tmp/asb-<uid>/<hash>` socket; two-part startup; target-profile preflight; WSL non-blocking | ADR-0001 and RFC-0001 revision with code, test, smoke, and `/proc/<pid>/cmdline` evidence |
 | 2026-11-03 | Status → `In review`; feedback deadline extended to 2026-11-08; wrapper drift fixed with regression test (red/green, SHA-256 recorded in §11); `asb exec` drift recorded in §11; ADR-0004 Q1 added as blocking question 7 | ADR-0005 deadline closure: ADR-0004 Q1 spike pending; acceptance deferred, never partial |
 | 2026-11-05 | ADR-0004 open question 1 spike resolved: only `execute.before` can reject a call; `execute.before` rewrites input, `execute.after` rewrites the result; `Tool.Error` construction recorded; §11 question 7 closed | Live run in OpenCode 2.1.4 with `@opencode/plugin@2.1.4`; no status change, acceptance remains at the 2026-11-08 deadline |
+| 2026-11-06 | Feedback deadline extended to 2026-11-15 | Both initiatives close together with RFC-0002; ADR-0004 questions 2–4 are due 2026-11-10, after the previous deadline |

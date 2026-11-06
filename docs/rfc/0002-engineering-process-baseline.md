@@ -221,7 +221,7 @@ stateDiagram-v2
 2. **Phase 1 — process scaffolding.** Create `docs/rfc/TEMPLATE.md` and `docs/adr/TEMPLATE.md`; add the PR checklist and the lightweight CI metadata/link check. Retrofit ADR-0002..0004 with a link to RFC-0001 and English status metadata; do not rewrite their content. Update RFC-0001's deadline (proposed 2026-11-08) and record the drift.
 3. **Phase 2 — English migration.** Translate docs, CLI strings, and test assertions; rename files to English slugs; update all links. This PR merges before RFC-0001 acceptance.
 4. **Phase 3 — testing gate.** Add Gremlins v0.6.0 to CI: diff per PR and weekly full; thresholds 70/60; record the baseline; add a seeded-bug check and a regression-test demo with red run + SHA-256.
-5. **Phase 4 — acceptance.** Accept RFC-0002 and RFC-0001; move linked ADRs to `Accepted`; freeze them; run a supersession dry run.
+5. **Phase 4 — acceptance (2026-11-15).** Accept RFC-0002 and RFC-0001; move linked ADRs to `Accepted`; freeze them; run a supersession dry run.
 
 **Compatibility:** existing ADRs remain readable during the transition. Their content is not rewritten; only metadata and links change. RFC-0001 is not accepted until the wrapper/`asb exec` drift is fixed or explicitly recorded.
 
@@ -262,13 +262,18 @@ This RFC is accepted when all of the following are true:
 | 1 | New deadline and acceptance date for RFC-0001 after the drift is fixed or recorded | Deadline extended to 2026-11-08; wrapper drift fixed, `asb exec` drift recorded (RFC-0001 §11) | RFC-0001 status `In review`; `internal/run/legacy_wrapper_test.go` red/green |
 | 3 | Translation PR sequencing and reviewer | Translation landed on 2026-11-02, before any acceptance; reviewer Gustavo (self-review, single maintainer) | Commit `a1731ba` |
 
+**Resolved on 2026-11-06:**
+
+| # | Question | Resolution | Evidence |
+|---|---|---|---|
+| 4 | Gremlins `--diff` base in CI and fork behavior | Use the pull-request base SHA from the event (`github.event.pull_request.base.sha`; `github.event.before` on push) and skip the job when the diff is empty; the weekly full run covers `main` | 2026-11-06 decision; `gremlins unleash --help` (`-D, --diff string: diff branch or commit`) |
+| 5 | Where to record equivalent mutants | `docs/mutation-triage.md`, a single table linked from `docs/README.md`; ADR-0007 references it | 2026-11-06 decision; one canonical home per ADR-0008 |
+
 **Still open:**
 
 | # | Question | Owner | Blocks approval? | Due |
 |---|---|---|---|---|
 | 2 | Exact CI metadata/link check: script vs. action; required fields | Gustavo | No | 2026-11-08 |
-| 4 | Gremlins `--diff` base in CI (`origin/main` vs. merge-base) and fork behavior | Gustavo | No | 2026-11-08 |
-| 5 | Where to record equivalent mutants | Gustavo | No | 2026-11-15 |
 | 6 | CI runtime of Gremlins; threshold for falling back to weekly only | Gustavo | No | After the first CI run |
 | 7 | Whether accepted ADRs need CODEOWNERS or a CI guard against edits | Gustavo | No | 2026-11-15 |
 | 8 | Whether "every ADR requires an RFC" creates too many RFCs | Gustavo | No | Revisit after 3 initiatives |
@@ -297,7 +302,9 @@ This RFC is accepted when all of the following are true:
 - [Gremlins v0.6.0 release](https://github.com/go-gremlins/gremlins/releases/tag/v0.6.0) and [documentation](https://gremlins.dev)
 - [Gremlins issue #278](https://github.com/go-gremlins/gremlins/issues/278) — `--diff` mode can skip mutations when invoked with a subdirectory argument; the proposal runs from the module root.
 - Local baseline, 2026-11-01: `gremlins unleash --workers 4 --timeout-coefficient 3 --output /tmp/opencode/gremlins-baseline.json`; 312 mutants total: 199 runnable (150 killed, 47 lived, 2 timed out) and 113 not covered; efficacy 76.14%, mutant coverage 63.55%; ~29 s.
-- Local run, 2026-11-06: same command with `--output /tmp/opencode/gremlins-2026-11-06.json`; 185 killed, 45 lived, 80 not covered, 2 timed out; efficacy 80.43%, mutant coverage 74.19%; 27 s. The local binary reported `gremlins version dev`, so this run is evidence of the thresholds, not proof of the v0.6.0 pin.
+- Local run, 2026-11-06: `go install github.com/go-gremlins/gremlins/cmd/gremlins@v0.6.0`, then `gremlins unleash --workers 4 --timeout-coefficient 3 --threshold-efficacy 70 --threshold-mcover 60 --output /tmp/opencode/gremlins-v0.6.0-2026-11-06.json`; 185 killed, 45 lived, 80 not covered, 2 timed out; efficacy 80.43%, mutant coverage 74.19%; 27 s; exit 0, so the 70/60 thresholds pass. The binary prints `gremlins version dev` because the version is injected at build time; the pin is the module version in the install command. The 45 `LIVED` mutants are listed in [`docs/mutation-triage.md`](../mutation-triage.md).
+- Seeded-bug check, 2026-11-06: changing `r < 'a'` to `r <= 'a'` in `ValidateSandboxID` made `go test ./internal/config` fail in `TestValidateSandboxID` and `TestConfigValidation`; reverting restored green. Removing `TestValidateSandboxID` then moved four mutants at `internal/config/config.go:501` from `KILLED` to `LIVED`, so that test is what kills them; efficacy fell from 80.43% to 78.70%.
+- Supersession dry run, 2026-11-06: in a throwaway worktree (not committed), a proposed ADR-0010 declared `Supersedes: ADR-0008` and ADR-0008 gained `Superseded by: ADR-0010` plus a Revisions row; `scripts/check-docs.sh` passed (13 metadata files, 104 links) and both directions resolved.
 - User request and grill answers, 2026-11-01 (conversation record).
 
 ## Revisions
@@ -307,4 +314,6 @@ This RFC is accepted when all of the following are true:
 | 2026-11-01 | Initial RFC generated from the grilled ADR-0005/6/7 | Process change request; bootstrapped because the new workflow did not exist |
 | 2026-11-03 | Open questions 1 and 3 resolved (RFC-0001 deadline extended to 2026-11-08 with drift fixed/recorded; translation landed in `a1731ba`) | Deadline closure work for RFC-0001 per ADR-0005 |
 | 2026-11-06 | Feedback deadline extended to 2026-11-15 | Acceptance criteria 6 and 8 cannot be met by 2026-11-08; pinning Gremlins v0.6.0 in CI and the supersession dry run require open questions 4 and 5 to be resolved first |
+| 2026-11-06 | Open questions 4 and 5 resolved: PR event SHA as the diff base; `docs/mutation-triage.md` as the triage log | Decider answers; acceptance moved to 2026-11-15 together with RFC-0001 |
+| 2026-11-06 | Gremlins v0.6.0 diff and weekly jobs wired through `scripts/mutation.sh`; triage log created with the 45-mutant backlog; seeded-bug and supersession checks run | Acceptance criteria 6 and 8 evidence; ADR-0007 implemented ahead of acceptance and recorded as unvalidated premises |
 | 2026-11-06 | Reviewers metadata: leftover Portuguese placeholder replaced with an English `[FILL: ...]` marker | English-only rule (ADR-0006); non-semantic edit |
