@@ -3,8 +3,8 @@
 - **Status:** In review
 - **Author(s):** Gustavo
 - **Reviewers:** Gustavo (self-review)
-- **Date:** 2026-10-29 (creation); 2026-11-01 (grill revision); 2026-11-03 (deadline extension)
-- **Feedback deadline:** 2026-11-08 (extended from 2026-11-03: ADR-0004 open question 1 needs an OpenCode plugin API spike before acceptance)
+- **Date:** 2026-10-29 (creation); 2026-11-01 (grill revision); 2026-11-03 (deadline extension); 2026-11-05 (plugin spike)
+- **Feedback deadline:** 2026-11-08 (extended from 2026-11-03 for the ADR-0004 open question 1 spike; the spike resolved it on 2026-11-05)
 - **Decision review:** 2 weeks after dogfood starts, which begins after the `allowlist` gate
 - **Related ADR:** [ADR-0001](../adr/0001-sandbox-opencode-com-bwrap.md)
 - **Supersedes / Related:** [ADR-0002](../adr/0002-per-sandbox-state-and-credentials.md), [ADR-0003](../adr/0003-pinned-skills-and-snapshot.md), [ADR-0004](../adr/0004-quality-gate-hooks.md); supersession: N/A
@@ -384,6 +384,12 @@ The decisions above are design decisions; the implementation and corresponding t
 | 1 | The `opencode-sandbox` wrapper still existed and added `--profile host` without `asb.toml` | **Fixed:** wrapper removed; `asb run` is the only entry point | red/green run of `internal/run/legacy_wrapper_test.go`; SHA-256 `6c8a05a4f54d72a6b7c31de4b2876c95fd12b8c632b39138fb0eacc7b7715786` |
 | 2 | ADR-0001/RFC-0001 describe `asb exec` delivering env by fd/file; the CLI has no `exec` subcommand and values still reach the `bwrap` argv via `--setenv` | **Recorded:** implementation pending; tracked as ADR-0001 open question 6, blocks the `allowlist` release, not this RFC's acceptance | `cmd/asb/main.go` subcommands; `internal/sandbox/bwrap.go:121` |
 
+**Resolved on 2026-11-05 (ADR-0004 open question 1 spike):**
+
+| # | Question | Resolution | Evidence |
+|---|---|---|---|
+| 1 | Blocking semantics in `execute.after` and `Tool.Error` construction | Only `execute.before` can reject a call, with a `Tool.Error`; a rejection fails that call alone and the model continues. `execute.before` may rewrite `input`; `execute.after` may only inspect or rewrite `event.result`. `Tool.Error` is `new Tool.Error({ message, error?, metadata? })`; the Promise API wraps any thrown `Error`. | `@opencode/plugin@2.1.4` (`dist/effect/tool.d.ts`, `dist/promise/adapter.js:458-464`); live runs in OpenCode 2.1.4 on 2026-11-05: a thrown `execute.before` error failed the read and the model answered in the same run; input and result rewrites were honored |
+
 **Still open:**
 
 | # | Question | Owner | Blocks? | Due |
@@ -394,9 +400,8 @@ The decisions above are design decisions; the implementation and corresponding t
 | 4 | OpenCode version pinned in the CI matrix | Gustavo | No | before green CI |
 | 5 | How to test host writes without depending on the user's absolute path | Gustavo | No | before the `allowlist` release |
 | 6 | Residual risk of `unshare -Urn` if a device/tun appears in the future | Gustavo | No | dogfood review |
-| 7 | ADR-0004 open question 1: blocking semantics in `execute.after` and `Tool.Error` construction (OpenCode plugin API spike) | Gustavo | **Yes, blocks RFC-0001 acceptance** | 2026-11-08 |
 
-No question blocks the v1 design. Question 7 blocks **acceptance of this RFC**, not the design: the spike must confirm ADR-0004's blocking semantics before the linked ADRs freeze. The `allowlist` release depends on the automated matrix and the decisions already recorded, not on an open question.
+No open question blocks the v1 design or acceptance of this RFC; the remaining questions are tracked to their due dates. The `allowlist` release depends on the automated matrix and the decisions already recorded, not on an open question. Acceptance still happens at the feedback deadline.
 
 ## 12. Questions for reviewers
 
@@ -419,12 +424,12 @@ No question blocks the v1 design. Question 7 blocks **acceptance of this RFC**, 
 - `.github/workflows/ci.yml` — current CI (Ubuntu; no WSL)
 - `internal/sandbox/bwrap.go`, `internal/sandbox/layout.go`, `internal/sandbox/preflight.go`, `internal/run/run.go` — points to change (`--setenv`/`.gitconfig`, `/tmp/asb`, preflight, startup measurement)
 - `docs/asb.md` — operational reference to align with this RFC
-- `opencode` v2.1.4 — `--standalone`, `auth export/import`, `service`; `opencode debug paths` and `opencode debug config` (verified in this environment)
+- `opencode` v2.1.4 — `--standalone`, `auth export/import`, `service`; `opencode debug paths` and `opencode debug config` (verified in this environment); tool hooks (`ctx.tool.hook("execute.before"/"execute.after")`) validated live on 2026-11-05 against `@opencode/plugin@2.1.4`
 - `bwrap` 0.13.1 (`man bwrap`)
 - [XDG Base Directory Specification](https://specifications.freedesktop.org/basedir-spec/latest/)
 - [bubblewrap](https://github.com/containers/bubblewrap)
 - [openyolo](https://github.com/gustavoxffff/openyolo) — shared-image alternative evaluated and discarded
-- OpenCode V2 — [Config](https://opencode.ai/v2/docs/config), [Network](https://opencode.ai/v2/docs/network), [Providers](https://opencode.ai/v2/docs/providers)
+- OpenCode V2 — [Config](https://opencode.ai/v2/docs/config), [Network](https://opencode.ai/v2/docs/network), [Providers](https://opencode.ai/v2/docs/providers), [Plugins — server](https://opencode.ai/v2/docs/build/plugins/server), [Plugins — Effect](https://opencode.ai/v2/docs/build/plugins/effect)
 - 2026-10-27 network spike, recorded in ADR-0001 (§ Network policy)
 - 2026-10-29 escape matrix (Python proxy/bridge; unversioned artifacts): npm 12.2.1, pip 26.2.1, node 26.12.1, git, and curl
 - `asb.toml` and precedence defined in §5.2; startup measurements in §9
@@ -436,3 +441,4 @@ No question blocks the v1 design. Question 7 blocks **acceptance of this RFC**, 
 | 2026-10-29 | RFC created from the rescoped ADR-0001; `asb`/`asb.toml`, precedence, base env allowlist, repeated matrix (npm/pip), script migration, and startup without a numeric target | RFC generated from the ADR corrected by the grill |
 | 2026-11-01 | Grill revision: wrapper/legacy removed; env through fd/file; `[git]` `minimal`/`manual`/`off`; expanded `allowlist` gate (git, Node, OpenCode, rebinding, NAT, `--clearenv`, `--standalone`, host writes, argv); dogfood after the gate; `/tmp/asb-<uid>/<hash>` socket; two-part startup; target-profile preflight; WSL non-blocking | ADR-0001 and RFC-0001 revision with code, test, smoke, and `/proc/<pid>/cmdline` evidence |
 | 2026-11-03 | Status → `In review`; feedback deadline extended to 2026-11-08; wrapper drift fixed with regression test (red/green, SHA-256 recorded in §11); `asb exec` drift recorded in §11; ADR-0004 Q1 added as blocking question 7 | ADR-0005 deadline closure: ADR-0004 Q1 spike pending; acceptance deferred, never partial |
+| 2026-11-05 | ADR-0004 open question 1 spike resolved: only `execute.before` can reject a call; `execute.before` rewrites input, `execute.after` rewrites the result; `Tool.Error` construction recorded; §11 question 7 closed | Live run in OpenCode 2.1.4 with `@opencode/plugin@2.1.4`; no status change, acceptance remains at the 2026-11-08 deadline |
