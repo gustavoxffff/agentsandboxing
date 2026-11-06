@@ -4,7 +4,7 @@
 - **Author(s):** Gustavo
 - **Reviewers:** Gustavo (self-review); [FILL: external reviewer, if any]
 - **Date:** 2026-11-01
-- **Feedback deadline:** 2026-11-08
+- **Feedback deadline:** 2026-11-15 (extended from 2026-11-08: acceptance criteria 6 and 8 need a pinned Gremlins run in CI and a supersession dry run, which depend on open questions 4 and 5)
 - **Related ADRs:** [ADR-0005](../adr/0005-rfc-adr-lifecycle.md), [ADR-0006](../adr/0006-english-only-artifacts.md), [ADR-0007](../adr/0007-mandatory-mutation-and-regression-tests.md)
 - **Supersedes / Related:** [RFC-0001](0001-configurable-sandbox-for-agents.md), [ADR-0001](../adr/0001-sandbox-opencode-com-bwrap.md), [ADR-0002](../adr/0002-per-sandbox-state-and-credentials.md), [ADR-0003](../adr/0003-pinned-skills-and-snapshot.md), [ADR-0004](../adr/0004-quality-gate-hooks.md)
 - **Origin:** draft ADRs produced from the grill of 2026-11-01. This RFC is bootstrapped from draft ADRs because the new workflow does not exist yet; after acceptance, new initiatives start with an RFC and produce ADRs at closure.
@@ -217,7 +217,7 @@ stateDiagram-v2
 
 ## 8. Migration and rollout
 
-1. **Phase 0 — feedback (until 2026-11-08).** Review this RFC; resolve or record blocking questions. Do not accept while a blocking question remains.
+1. **Phase 0 — feedback (until 2026-11-15).** Review this RFC; resolve or record blocking questions. Do not accept while a blocking question remains.
 2. **Phase 1 — process scaffolding.** Create `docs/rfc/TEMPLATE.md` and `docs/adr/TEMPLATE.md`; add the PR checklist and the lightweight CI metadata/link check. Retrofit ADR-0002..0004 with a link to RFC-0001 and English status metadata; do not rewrite their content. Update RFC-0001's deadline (proposed 2026-11-08) and record the drift.
 3. **Phase 2 — English migration.** Translate docs, CLI strings, and test assertions; rename files to English slugs; update all links. This PR merges before RFC-0001 acceptance.
 4. **Phase 3 — testing gate.** Add Gremlins v0.6.0 to CI: diff per PR and weekly full; thresholds 70/60; record the baseline; add a seeded-bug check and a regression-test demo with red run + SHA-256.
@@ -297,6 +297,7 @@ This RFC is accepted when all of the following are true:
 - [Gremlins v0.6.0 release](https://github.com/go-gremlins/gremlins/releases/tag/v0.6.0) and [documentation](https://gremlins.dev)
 - [Gremlins issue #278](https://github.com/go-gremlins/gremlins/issues/278) — `--diff` mode can skip mutations when invoked with a subdirectory argument; the proposal runs from the module root.
 - Local baseline, 2026-11-01: `gremlins unleash --workers 4 --timeout-coefficient 3 --output /tmp/opencode/gremlins-baseline.json`; 312 mutants total: 199 runnable (150 killed, 47 lived, 2 timed out) and 113 not covered; efficacy 76.14%, mutant coverage 63.55%; ~29 s.
+- Local run, 2026-11-06: same command with `--output /tmp/opencode/gremlins-2026-11-06.json`; 185 killed, 45 lived, 80 not covered, 2 timed out; efficacy 80.43%, mutant coverage 74.19%; 27 s. The local binary reported `gremlins version dev`, so this run is evidence of the thresholds, not proof of the v0.6.0 pin.
 - User request and grill answers, 2026-11-01 (conversation record).
 
 ## Revisions
@@ -305,4 +306,5 @@ This RFC is accepted when all of the following are true:
 |---|---|---|
 | 2026-11-01 | Initial RFC generated from the grilled ADR-0005/6/7 | Process change request; bootstrapped because the new workflow did not exist |
 | 2026-11-03 | Open questions 1 and 3 resolved (RFC-0001 deadline extended to 2026-11-08 with drift fixed/recorded; translation landed in `a1731ba`) | Deadline closure work for RFC-0001 per ADR-0005 |
+| 2026-11-06 | Feedback deadline extended to 2026-11-15 | Acceptance criteria 6 and 8 cannot be met by 2026-11-08; pinning Gremlins v0.6.0 in CI and the supersession dry run require open questions 4 and 5 to be resolved first |
 | 2026-11-06 | Reviewers metadata: leftover Portuguese placeholder replaced with an English `[FILL: ...]` marker | English-only rule (ADR-0006); non-semantic edit |
