@@ -40,7 +40,9 @@ ADR-0001..0004 were translated to English under ADR-0006; their content is other
 ## Checks
 
 - `scripts/check-docs.sh` — validates relative links and required metadata.
-- `.github/workflows/ci.yml` — tests, vet, formatting, docs, build, and escape matrix.
+- `scripts/mutation.sh --diff <ref>` / `--full` — mutation gate per ADR-0007.
+- [`docs/mutation-triage.md`](mutation-triage.md) — tracked log of `LIVED` mutants.
+- `.github/workflows/ci.yml` — tests, vet, formatting, docs, build, escape matrix, and the Gremlins diff job (weekly full run on schedule).
 
 ## Precedence
 

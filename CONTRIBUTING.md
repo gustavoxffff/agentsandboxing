@@ -46,6 +46,7 @@ Use `.github/pull_request_template.md`. A pull request should:
 - Include tests for the change.
 - Include regression evidence for every bug fix or security fix.
 - Include mutation evidence for Go changes, or the reason it was skipped.
+- Record surviving mutants in [`docs/mutation-triage.md`](docs/mutation-triage.md).
 - Update documentation and links.
 - Contain no new Portuguese content.
 

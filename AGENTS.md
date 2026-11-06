@@ -33,10 +33,15 @@ ASB=/tmp/asb scripts/matrix.sh
 Mutation testing, when the change touches Go code:
 
 ```sh
-gremlins unleash --diff origin/main --workers 4 --timeout-coefficient 3 --output /tmp/gremlins.json
+scripts/mutation.sh --diff origin/main     # changed Go code, per pull request
+scripts/mutation.sh --full                 # whole module, weekly
 ```
 
-Gremlins is pinned to v0.6.0. Run it from the module root, not from a subdirectory.
+The script installs nothing: get the pinned tool with
+`go install github.com/go-gremlins/gremlins/cmd/gremlins@v0.6.0`. Run it from the
+module root, not from a subdirectory. `gremlins version` prints `dev` because the
+version is injected at build time, so the pin is the module version, not the
+printed string. Record surviving mutants in `docs/mutation-triage.md`.
 
 ## Invariants
 

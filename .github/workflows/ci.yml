@@ -3,6 +3,9 @@ name: ci
 on:
   push:
   pull_request:
+  schedule:
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
 
 jobs:
   test:
@@ -40,3 +43,55 @@ jobs:
 
       - name: Network escape matrix (allowlist gate)
         run: ASB=/tmp/asb scripts/matrix.sh
+
+  mutation-diff:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install Gremlins v0.6.0
+        run: |
+          go install github.com/go-gremlins/gremlins/cmd/gremlins@v0.6.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Mutation gate on changed Go code
+        env:
+          MUTATION_REPORT: /tmp/opencode/gremlins-diff.json
+        run: scripts/mutation.sh --diff "${{ github.event.pull_request.base.sha }}"
+
+  mutation-full:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install Gremlins v0.6.0
+        run: |
+          go install github.com/go-gremlins/gremlins/cmd/gremlins@v0.6.0
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Weekly full mutation run
+        env:
+          MUTATION_REPORT: /tmp/opencode/gremlins-full.json
+        run: scripts/mutation.sh --full
+
+      - name: Upload mutation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gremlins-full
+          path: /tmp/opencode/gremlins-full.json
+          if-no-files-found: ignore
