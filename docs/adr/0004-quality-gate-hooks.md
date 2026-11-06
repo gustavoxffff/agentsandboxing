@@ -83,7 +83,7 @@ Hooks are **feedback**, not a security boundary. An agent with `bash` can bypass
 
 | # | Question | Owner | Blocks? | Due |
 |---|---|---|---|---|
-| 1 | Blocking semantics in `execute.after` and `Tool.Error` construction | Gustavo | Yes, for the feature | 2026-11-03 |
+| 1 | Blocking semantics in `execute.after` and `Tool.Error` construction | Gustavo | Yes, for the feature; blocks RFC-0001 acceptance until spiked | 2026-11-08 |
 | 2 | Final schema for triggers and matchers | Gustavo | No | 2026-11-10 |
 | 3 | Default curated gate list | Gustavo | No | 2026-11-10 |
 | 4 | Lifecycle hooks (end of session, before commit) | Gustavo | No | 2026-11-10 |
@@ -95,3 +95,4 @@ Hooks are **feedback**, not a security boundary. An agent with `bash` can bypass
 |---|---|---|
 | 2026-10-29 | Extracted from the original ADR-0001 | Split into 4 ADRs; ADR-0001 keeps v1 (Go + network) |
 | 2026-10-29 | Paths renamed to `asb`, consistent with ADR-0001 | RFC pending-item closure |
+| 2026-11-03 | Open question 1 due date extended to 2026-11-08 and marked as blocking RFC-0001 acceptance | RFC-0001 feedback deadline extension; the OpenCode plugin API spike must run before the linked ADRs freeze |

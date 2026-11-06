@@ -33,9 +33,9 @@ Without a configured profile, `asb` fails and asks for an explicit choice:
 | `none` | loopback only; no external connection |
 | `allowlist` | only listed destinations, through the proxy; direct egress blocked |
 
-`opencode-sandbox` is a wrapper: it runs `asb run` and fails if `asb` is not on
-`PATH`. Without `asb.toml`, it warns and uses `--profile host` (legacy
-behavior).
+The legacy `opencode-sandbox` script was removed in v1: there is no wrapper
+and no implicit `--profile host`. Call `asb run` directly; the old script is
+preserved in commit `8d97c44`.
 
 Tests and escape matrix:
 
