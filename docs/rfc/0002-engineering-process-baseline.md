@@ -2,7 +2,7 @@
 
 - **Status:** Draft
 - **Author(s):** Gustavo
-- **Reviewers:** Gustavo (self-review); [PREENCHER: external reviewer, if any]
+- **Reviewers:** Gustavo (self-review); [FILL: external reviewer, if any]
 - **Date:** 2026-11-01
 - **Feedback deadline:** 2026-11-08
 - **Related ADRs:** [ADR-0005](../adr/0005-rfc-adr-lifecycle.md), [ADR-0006](../adr/0006-english-only-artifacts.md), [ADR-0007](../adr/0007-mandatory-mutation-and-regression-tests.md)
@@ -305,3 +305,4 @@ This RFC is accepted when all of the following are true:
 |---|---|---|
 | 2026-11-01 | Initial RFC generated from the grilled ADR-0005/6/7 | Process change request; bootstrapped because the new workflow did not exist |
 | 2026-11-03 | Open questions 1 and 3 resolved (RFC-0001 deadline extended to 2026-11-08 with drift fixed/recorded; translation landed in `a1731ba`) | Deadline closure work for RFC-0001 per ADR-0005 |
+| 2026-11-06 | Reviewers metadata: leftover Portuguese placeholder replaced with an English `[FILL: ...]` marker | English-only rule (ADR-0006); non-semantic edit |
