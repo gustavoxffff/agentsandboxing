@@ -379,6 +379,12 @@ echo "== OpenCode --standalone (all profiles) =="
 OPENCODE_BIN="${OPENCODE:-$(command -v opencode 2>/dev/null || true)}"
 OPENCODE_VERSION="${OPENCODE_VERSION:-2.1.4}"
 if [ -n "$OPENCODE_BIN" ] && [ -x "$OPENCODE_BIN" ]; then
+  # Copy the binary into the project so it is available inside the sandbox
+  # (only the project directory is bind-mounted into bwrap).
+  if [ "$OPENCODE_BIN" != "$PROJECT/opencode" ]; then
+    cp "$OPENCODE_BIN" "$PROJECT/opencode" 2>/dev/null || true
+    OPENCODE_BIN="$PROJECT/opencode"
+  fi
   got_version="$("$OPENCODE_BIN" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1)"
   if [ "$got_version" = "$OPENCODE_VERSION" ]; then
     pass "opencode version $OPENCODE_VERSION"
@@ -403,7 +409,8 @@ if [ -n "$OPENCODE_BIN" ] && [ -x "$OPENCODE_BIN" ]; then
   fi
 
   # Start a standalone run and prove its private server is a descendant of the
-  # bwrap process inside the sandbox PID namespace.
+  # bwrap process inside the sandbox PID namespace. Poll aggressively because
+  # without API credentials the server exits quickly (free-usage limit).
   cat >"$PROJECT/oc-check.sh" <<SH
 #!/bin/sh
 set -u
@@ -411,16 +418,16 @@ set -u
 runpid=\$!
 server=""
 i=0
-while [ "\$i" -lt 80 ]; do
+while [ "\$i" -lt 500 ]; do
   for p in /proc/[0-9]*; do
+    [ -f "\$p/cmdline" ] || continue
     cmd=\$(tr '\\0' ' ' <"\$p/cmdline" 2>/dev/null)
     case "\$cmd" in
-      *"opencode serve"*) server=\${p#/proc/}; break ;;
+      *"opencode serve"*) server=\${p#/proc/}; break 2 ;;
     esac
   done
-  [ -n "\$server" ] && break
   i=\$((i+1))
-  sleep 0.1
+  sleep 0.02
 done
 if [ -z "\$server" ]; then
   kill "\$runpid" 2>/dev/null
@@ -431,8 +438,9 @@ fi
 pid=\$server
 chain="\$pid"
 while :; do
+  [ -f "/proc/\$pid/status" ] || break
   ppid=\$(awk '/^PPid:/{print \$2}' "/proc/\$pid/status" 2>/dev/null)
-  [ -z "\$ppid" ] && break
+  [ -n "\$ppid" ] || break
   chain="\$chain \$ppid"
   [ "\$ppid" -le 1 ] && break
   pid=\$ppid
