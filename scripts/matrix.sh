@@ -374,10 +374,19 @@ else
   bad "could not write opencode.db inside the sandbox"
 fi
 
-echo "== profile allowlist: OpenCode =="
+echo "== OpenCode --standalone (all profiles) =="
 
-if command -v opencode >/dev/null 2>&1 && [[ "$(command -v opencode)" == /usr/* ]]; then
-  out="$(run_allow 'opencode debug paths 2>/dev/null')"
+OPENCODE_BIN="${OPENCODE:-$(command -v opencode 2>/dev/null || true)}"
+OPENCODE_VERSION="${OPENCODE_VERSION:-2.1.4}"
+if [ -n "$OPENCODE_BIN" ] && [ -x "$OPENCODE_BIN" ]; then
+  got_version="$("$OPENCODE_BIN" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -n1)"
+  if [ "$got_version" = "$OPENCODE_VERSION" ]; then
+    pass "opencode version $OPENCODE_VERSION"
+  else
+    bad "opencode version ${got_version:-unknown}, want $OPENCODE_VERSION"
+  fi
+
+  out="$(run_allow "\"$OPENCODE_BIN\" debug paths 2>/dev/null")"
   state_prefix="$HOME/.local/state/asb/sandboxes/"
   ok=1
   for key in data cache config state; do
@@ -392,20 +401,91 @@ if command -v opencode >/dev/null 2>&1 && [[ "$(command -v opencode)" == /usr/* 
   else
     bad "opencode paths outside the sandbox state: $out"
   fi
+
+  # Start a standalone run and prove its private server is a descendant of the
+  # bwrap process inside the sandbox PID namespace.
+  cat >"$PROJECT/oc-check.sh" <<SH
+#!/bin/sh
+set -u
+"$OPENCODE_BIN" run --standalone --format json hi >/tmp/oc-run.out 2>&1 &
+runpid=\$!
+server=""
+i=0
+while [ "\$i" -lt 80 ]; do
+  for p in /proc/[0-9]*; do
+    cmd=\$(tr '\\0' ' ' <"\$p/cmdline" 2>/dev/null)
+    case "\$cmd" in
+      *"opencode serve"*) server=\${p#/proc/}; break ;;
+    esac
+  done
+  [ -n "\$server" ] && break
+  i=\$((i+1))
+  sleep 0.1
+done
+if [ -z "\$server" ]; then
+  kill "\$runpid" 2>/dev/null
+  wait "\$runpid" 2>/dev/null
+  echo NO_SERVER
+  exit 1
+fi
+pid=\$server
+chain="\$pid"
+while :; do
+  ppid=\$(awk '/^PPid:/{print \$2}' "/proc/\$pid/status" 2>/dev/null)
+  [ -z "\$ppid" ] && break
+  chain="\$chain \$ppid"
+  [ "\$ppid" -le 1 ] && break
+  pid=\$ppid
+done
+kill "\$runpid" 2>/dev/null
+wait "\$runpid" 2>/dev/null
+case " \$chain " in
+  *" \$runpid "*) echo "SERVER_CHILD \$chain" ;;
+  *) echo "SERVER_NOT_CHILD \$chain"; exit 1 ;;
+esac
+SH
+  chmod 0755 "$PROJECT/oc-check.sh"
+
+  for profile in none allowlist host; do
+    case "$profile" in
+      none) out="$(run_none "/bin/sh $PROJECT/oc-check.sh")" ;;
+      allowlist) out="$(run_allow "/bin/sh $PROJECT/oc-check.sh")" ;;
+      host) out="$(run_host "/bin/sh $PROJECT/oc-check.sh")" ;;
+    esac
+    case "$out" in
+      SERVER_CHILD*) pass "opencode --standalone server under bwrap ($profile)" ;;
+      *) bad "opencode --standalone process tree ($profile): ${out:-no output}" ;;
+    esac
+  done
 else
-  echo "info opencode absent in /usr; install and pin it before closing the allowlist gate"
+  echo "info opencode not found; install @opencode/cli@$OPENCODE_VERSION or set OPENCODE"
 fi
 
-helpers=""
-for helper in slirp4netns pasta rootlesskit; do
-  if command -v "$helper" >/dev/null 2>&1; then
-    helpers="$helpers $helper"
+echo "== profile allowlist: user-mode NAT =="
+
+helper_found=""
+for helper in slirp4netns pasta; do
+  helper_path="$(command -v "$helper" 2>/dev/null || true)"
+  if [ -n "$helper_path" ] && [[ "$helper_path" == /usr/* ]]; then
+    helper_found="$helper_found $helper"
+    case "$helper" in
+      slirp4netns)
+        out="$(run_allow 'timeout 5 slirp4netns $$ </dev/null >/dev/null 2>&1; echo "helper-exit=$?"')"
+        ;;
+      pasta)
+        out="$(run_allow 'timeout 5 pasta --quiet true </dev/null >/dev/null 2>&1; echo "helper-exit=$?"')"
+        ;;
+    esac
+    case "$out" in
+      helper-exit=0) bad "$helper started despite no /dev/net/tun" ;;
+      helper-exit=124) bad "$helper kept running despite no /dev/net/tun" ;;
+      helper-exit=*) pass "$helper cannot create a tap" ;;
+      *) bad "$helper check produced no result: $out" ;;
+    esac
   fi
 done
-if [ -n "$helpers" ]; then
-  echo "info user-mode NAT helpers present:$helpers; the primitive checks above cover the namespace"
-else
-  echo "info no user-mode NAT helper in /usr; the primitive checks above cover the namespace"
+if [ -z "$helper_found" ]; then
+  echo "info no user-mode NAT helper in /usr; primitive checks cover the namespace"
 fi
 
 if command -v npm >/dev/null 2>&1 && [[ "$(command -v npm)" == /usr/* ]]; then

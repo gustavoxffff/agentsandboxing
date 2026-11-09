@@ -192,13 +192,13 @@ v1 is considered ready when:
 | 4 | Transparent proxy as fallback | Gustavo | No | — | Closed: out of v1 |
 | 5 | Residual risk of `unshare -Urn` if a device/tun appears in the future | Gustavo | No | dogfood review | Open |
 | 6 | Env secrets by fd/file (`asb exec`) and argv test | Gustavo | Yes, for `allowlist` | before release | Implemented (PR #3, 2026-11-09) |
-| 7 | Expanded matrix: git, Node, OpenCode, rebinding, NAT, `--clearenv`, `--standalone`, host writes | Gustavo | Yes, for `allowlist` | before release | Open |
+| 7 | Expanded matrix: git, Node, OpenCode, rebinding, NAT, `--clearenv`, `--standalone`, host writes | Gustavo | Yes, for `allowlist` | before release | Implemented (`scripts/matrix.sh`, 2026-11-09) |
 | 8 | `[git] mode = minimal`/`manual` and removal of the `.gitconfig` mount | Gustavo | Yes, for `allowlist` | before release | Open |
 | 9 | `/tmp/asb` fallback and regression test | Gustavo | Yes, for `allowlist` | before release | Open |
 | 10 | WSL without an automated runner | Gustavo | No | before dogfood | Open |
 | 11 | Startup definition (setup vs. until the command) | Gustavo | No | 2026-11-10 | Open |
 | 12 | Preflight with `--unshare-net`/`--cap-drop ALL` | Gustavo | No | 2026-11-10 | Open |
-| 13 | OpenCode version pinned in the matrix | Gustavo | No | before green CI | Open |
+| 13 | OpenCode version pinned in the matrix | Gustavo | No | before green CI | Resolved: `@opencode/cli@2.1.4` in CI (2026-11-09) |
 
 ## Revisions
 
@@ -215,3 +215,4 @@ v1 is considered ready when:
 | 2026-10-29 | Pending items closed: `asb`/`asb.toml` + precedence, base env allowlist, repeated matrix (npm/pip passed; residual `unshare -Urn`), script migration, startup without a numeric target | RFC closure review |
 | 2026-11-01 | Grill revision: wrapper/legacy removed; env secrets by fd/file; `[git]` `minimal`/`manual`; expanded `allowlist` gate; dogfood after the gate; socket, startup, and preflight corrections | ADR-0001 and RFC-0001 revision with code evidence (tests, smoke, and `/proc/<pid>/cmdline`) |
 | 2026-11-09 | Open question 6 marked implemented: `asb exec` + env-file delivery (PR #3, `2adde64`); no semantic change to the decision | RFC-0001 §11 drift row 2 fixed with a red/green argv regression test and mutation evidence |
+| 2026-11-09 | Questions 7 and 13 closed: the expanded matrix is automated in `scripts/matrix.sh`; CI pins Node v24.22.2, `@opencode/cli@2.1.4`, and `slirp4netns` 1.2.1; no semantic change to the decision | Phase 6 `allowlist` gate work; RFC-0001 §5.3 updated |
