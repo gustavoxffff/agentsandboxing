@@ -248,7 +248,7 @@ This RFC is accepted when all of the following are true:
 - [x] ADR-0002..0004 link to RFC-0001; RFC-0001's deadline is updated; no content rewrite. (Checked 2026-11-09.)
 - [x] The translation PR is merged; new artifacts are English; CLI help/errors and tests are English; renamed files have no broken links. (Checked 2026-11-09: commit `a1731ba`; `scripts/check-docs.sh` passes.)
 - [x] Gremlins v0.6.0 runs on PR diff and weekly full; the 70/60 gate is green on the baseline; the baseline is recorded; a seeded bug is killed. (Checked 2026-11-09: `.github/workflows/ci.yml` jobs `mutation-diff`/`mutation-full`; baseline 80.43% efficacy / 74.19% mutant coverage; seeded-bug check in §13.)
-- [ ] The regression-test template requires the red run and the SHA-256 of the test file; a demo PR shows both. The template requires both; the demo-PR evidence is still missing (the existing red/green and SHA-256 for the wrapper drift live in RFC-0001 §11, not in a PR).
+- [x] The regression-test template requires the red run and the SHA-256 of the test file; a demo PR shows both. (Checked 2026-11-09: `.github/pull_request_template.md` requires both; PR #2 carries the red run, the test-file SHA-256, and the green run.)
 - [x] No accepted ADR is semantically edited; a supersession dry run passes. (Checked 2026-11-06: throwaway worktree dry run; `scripts/check-docs.sh` also validates the back-reference as of 2026-11-09.)
 - [x] Every open question in §11 is resolved or explicitly marked non-blocking. (Checked 2026-11-09: Q2, Q7, and Q9 resolved; Q6 and Q8 remain explicitly non-blocking with due dates.)
 - [x] RFC-0001 is accepted only after the wrapper/`asb exec` drift is fixed or recorded. (Checked 2026-11-03: wrapper fixed; `asb exec` drift recorded in RFC-0001 §11 and ADR-0001 Q6.)
@@ -325,3 +325,4 @@ This RFC is accepted when all of the following are true:
 | 2026-11-06 | Reviewers metadata: leftover Portuguese placeholder replaced with an English `[FILL: ...]` marker | English-only rule (ADR-0006); non-semantic edit |
 | 2026-11-09 | Status `Draft` → `In review`; open questions 2, 7, and 9 resolved; acceptance criteria re-checked with evidence | The 2026-11-15 feedback deadline is active; Q2 was overdue; Q7 and Q9 were due at acceptance |
 | 2026-11-09 | `scripts/check-docs.sh` now validates `Supersedes` presence and the supersession back-reference; red/green runs recorded in §13 | ADR-0009 requires the docs check to validate `Supersedes`; pre-acceptance verification found the implementation gap |
+| 2026-11-09 | Acceptance criterion 7 ticked; demo PR #2 carries the red run and the test-file SHA-256 | Criterion 7 requires a demo PR; the PR is the evidence |
