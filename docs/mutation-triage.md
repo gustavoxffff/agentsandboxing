@@ -34,11 +34,20 @@ time, so the pin is the module version, not the printed version.
 Thresholds pass. The 45 `LIVED` mutants below are **untriaged**; each needs a
 test or an entry in the next table before the gate can be called clean.
 
+## Diff run, 2026-11-09
+
+`scripts/mutation.sh --diff origin/main` on `feat/asb-exec-env-file`
+(`asb exec` and env-file delivery): 26 killed, 1 lived, 0 not covered;
+efficacy 96.30%, mutant coverage 100%.
+
+The surviving mutant is an equivalent; it is recorded below. The stale-file
+removal branch is covered by `TestWriteEnvFileReportsStaleRemovalFailure`.
+
 ## Triaged equivalents
 
 | Location | Mutator | Reason | Reviewer | Date |
 |---|---|---|---|---|
-| — | — | No entries yet | — | — |
+| `internal/sandbox/envfile.go:94:45` | ARITHMETIC_BASE | Map capacity hint (`len(base)+len(extra)` → `len(base)-len(extra)`); it only changes the allocation size, not behavior | Gustavo | 2026-11-09 |
 
 ## Limits
 
