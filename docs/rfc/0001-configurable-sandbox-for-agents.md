@@ -203,16 +203,16 @@ The v1 proxy resolves **IPv4 only** and fails closed for a host with only AAAA. 
 | Gap | Minimum test | Status |
 |---|---|---|
 | git | `git ls-remote` to an allowed and a denied domain through the proxy | Automated in `scripts/matrix.sh` (2026-11-09) |
-| Node | `fetch` with `NODE_USE_ENV_PROXY=1`; fails without the flag | Automated when Node 24+ is in `/usr`; the CI image still installs Node 18, so the test skips there |
-| OpenCode | `--standalone` inside `bwrap`; process tree without the host service | Open: CI does not install OpenCode and its version is not pinned (Q4/Q13); the script checks XDG paths when the binary is in `/usr` |
+| Node | `fetch` with `NODE_USE_ENV_PROXY=1`; fails without the flag | Automated in `scripts/matrix.sh`; CI installs pinned Node v24.22.2 under `/usr/local` (2026-11-09) |
+| OpenCode | `--standalone` inside `bwrap`; process tree without the host service | Automated in `scripts/matrix.sh`; CI installs pinned `@opencode/cli@2.1.4` under `/usr/local` (2026-11-09) |
 | DNS rebinding | public hostname resolving to loopback/private IP → 403 | Automated in `scripts/matrix.sh` (2026-11-09) |
-| User-mode NAT | with `slirp4netns`/`pasta` installed, no egress | Partially automated: `/dev/net/tun`, `mknod`, and `CapBnd` are checked in `allowlist`; no helper is installed in CI, so the live helper path is open |
+| User-mode NAT | with `slirp4netns`/`pasta` installed, no egress | Automated in `scripts/matrix.sh`; CI installs `slirp4netns` 1.2.1 (2026-11-09) |
 | `--clearenv` | undeclared variable absent; declared variable present | Automated in `scripts/matrix.sh` (2026-11-09) |
-| `--standalone` | server child of `bwrap` in all profiles | Open with OpenCode |
+| `--standalone` | server child of `bwrap` in all profiles | Automated: the server process is a descendant of `bwrap` in `none`, `allowlist`, and `host` (2026-11-09) |
 | Host write | write to global config/data/state/cache and `opencode.db` fails | Automated in `scripts/matrix.sh` (2026-11-09) |
 | Secrets in argv | `env.allow`/`from_file` absent from `/proc/<pid>/cmdline` | Automated in `scripts/matrix.sh` (2026-11-09) |
 
-**Gate:** v1 can be dogfooded with `host`/`none`; `allowlist` is announced as ready only when the **automated matrix in CI** reproduces these results and closes the remaining OpenCode and user-mode NAT gaps. npm/pip and user-mode NAT passed manually on 2026-10-29; the gate is no longer "test npm/pip" but "automate the entire matrix". The spike used minimal Python proxy/bridge; the Go implementation must reproduce the matrix and cover parsing, timeouts, proxy drops mid-session, and network errors.
+**Gate:** v1 can be dogfooded with `host`/`none`; `allowlist` is announced as ready only when the **automated matrix in CI** reproduces these results. CI pins Node v24.22.2, `@opencode/cli@2.1.4`, and `slirp4netns` 1.2.1 for this run (2026-11-09). npm/pip and user-mode NAT passed manually on 2026-10-29; the gate is no longer "test npm/pip" but "automate the entire matrix". The spike used minimal Python proxy/bridge; the Go implementation must reproduce the matrix and cover parsing, timeouts, proxy drops mid-session, and network errors.
 
 ### 5.4 State, environment, and credentials
 
@@ -397,9 +397,9 @@ The decisions above are design decisions; the implementation and corresponding t
 | 1 | Toolchains beyond npm/pip/node (Go, Rust, Java) in the matrix | Gustavo | No; covered in Phase 2 | during dogfood |
 | 2 | Behavior when the proxy drops mid-session: fail closed, retry, or terminate | Gustavo | No | Phase 2 |
 | 3 | Credentials: login per sandbox vs. `auth export/import` (ADR-0002) | Gustavo | Not for v1 | ADR-0002 |
-| 4 | OpenCode version pinned in the CI matrix | Gustavo | No | before green CI |
-| 5 | How to test host writes without depending on the user's absolute path | Gustavo | No | before the `allowlist` release |
 | 6 | Residual risk of `unshare -Urn` if a device/tun appears in the future | Gustavo | No | dogfood review |
+
+**Resolved on 2026-11-09:** OpenCode 2.1.4 is pinned in the CI matrix (Q4); the host-write test uses a temporary marker under `$HOME` in `scripts/matrix.sh` and does not depend on a user-specific absolute path (Q5).
 
 No open question blocks the v1 design or acceptance of this RFC; the remaining questions are tracked to their due dates. The `allowlist` release depends on the automated matrix and the decisions already recorded, not on an open question. Acceptance still happens at the feedback deadline.
 
@@ -445,3 +445,4 @@ No open question blocks the v1 design or acceptance of this RFC; the remaining q
 | 2026-11-06 | Feedback deadline extended to 2026-11-15 | Both initiatives close together with RFC-0002; ADR-0004 questions 2–4 are due 2026-11-10, after the previous deadline |
 | 2026-11-09 | §11 drift row 2 fixed: `asb exec` and env-file delivery landed (PR #3, `2adde64`) with a red/green argv regression test and mutation evidence; ADR-0001 question 6 marked implemented | Phase 6 implementation before acceptance; statuses unchanged (`In review` / `Proposed (in RFC)`) |
 | 2026-11-09 | §5.3 coverage refreshed: `scripts/matrix.sh` now automates git, DNS rebinding, `--clearenv`/env file, secrets in argv, host writes, and `allowlist` primitive hardening; Node is conditional on Node 24+, OpenCode and a live user-mode NAT helper remain open | Phase 6 matrix work before acceptance; no status change |
+| 2026-11-09 | §5.3 gate closed in CI: Node v24.22.2, `@opencode/cli@2.1.4`, and `slirp4netns` 1.2.1 pinned; OpenCode `--standalone` process-tree and live NAT helper checks added; Q4/Q5 resolved | Phase 6 matrix work before acceptance; no status change |

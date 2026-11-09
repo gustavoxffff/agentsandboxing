@@ -33,7 +33,22 @@ jobs:
       - name: Matrix dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y bubblewrap curl git nodejs npm python3-pip
+          sudo apt-get install -y bubblewrap curl git nodejs npm python3-pip slirp4netns
+
+      - name: Install pinned Node 24 under /usr/local
+        run: |
+          version=v24.22.2
+          curl -fsSLO "https://nodejs.org/dist/$version/node-$version-linux-x64.tar.xz"
+          curl -fsSLO "https://nodejs.org/dist/$version/SHASUMS256.txt"
+          grep " node-$version-linux-x64.tar.xz\$" SHASUMS256.txt | sha256sum -c -
+          sudo tar -xJf "node-$version-linux-x64.tar.xz" -C /usr/local --strip-components=1
+          node --version
+          npm --version
+
+      - name: Install pinned OpenCode under /usr/local
+        run: |
+          sudo npm install -g @opencode/cli@2.1.4
+          opencode --version
 
       - name: Enable user namespaces for bwrap
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0 || true
