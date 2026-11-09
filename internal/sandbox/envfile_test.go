@@ -30,6 +30,20 @@ func TestWriteEnvFileRoundTrip(t *testing.T) {
 	}
 }
 
+func TestWriteEnvFileReportsStaleRemovalFailure(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "env")
+	if err := os.Mkdir(path, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(path, "child"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	err := WriteEnvFile(path, []string{"PATH=/usr/bin"})
+	if err == nil || !strings.Contains(err.Error(), "remove stale env file") {
+		t.Fatalf("WriteEnvFile = %v, want a stale-removal error", err)
+	}
+}
+
 func TestWriteEnvFileRejectsReservedVariable(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "env")
 	if err := WriteEnvFile(path, []string{"HOME=/evil"}); err == nil {
