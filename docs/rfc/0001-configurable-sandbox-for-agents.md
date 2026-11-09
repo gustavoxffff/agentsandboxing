@@ -382,7 +382,7 @@ The decisions above are design decisions; the implementation and corresponding t
 | # | Drift | Resolution | Evidence |
 |---|---|---|---|
 | 1 | The `opencode-sandbox` wrapper still existed and added `--profile host` without `asb.toml` | **Fixed:** wrapper removed; `asb run` is the only entry point | red/green run of `internal/run/legacy_wrapper_test.go`; SHA-256 `6c8a05a4f54d72a6b7c31de4b2876c95fd12b8c632b39138fb0eacc7b7715786` |
-| 2 | ADR-0001/RFC-0001 describe `asb exec` delivering env by fd/file; the CLI has no `exec` subcommand and values still reach the `bwrap` argv via `--setenv` | **Recorded:** implementation pending; tracked as ADR-0001 open question 6, blocks the `allowlist` release, not this RFC's acceptance | `cmd/asb/main.go` subcommands; `internal/sandbox/bwrap.go:121` |
+| 2 | ADR-0001/RFC-0001 describe `asb exec` delivering env by fd/file; the CLI has no `exec` subcommand and values still reach the `bwrap` argv via `--setenv` | **Fixed on 2026-11-09:** `asb exec` reads a `0600` env file, removes it, and execs the command; `--setenv` carries only `HOME`, `TMPDIR`, and `XDG_*` (PR #3, `2adde64`); ADR-0001 question 6 marked implemented | red/green run of `internal/run/env_argv_test.go`; SHA-256 `e5169c79bda1b5a88c2e3cb3c7148235145025ede28b1b723b5f5667527591f7`; diff mutation `26 killed, 1 lived, 0 not covered` in `docs/mutation-triage.md` |
 
 **Resolved on 2026-11-05 (ADR-0004 open question 1 spike):**
 
@@ -443,3 +443,4 @@ No open question blocks the v1 design or acceptance of this RFC; the remaining q
 | 2026-11-03 | Status → `In review`; feedback deadline extended to 2026-11-08; wrapper drift fixed with regression test (red/green, SHA-256 recorded in §11); `asb exec` drift recorded in §11; ADR-0004 Q1 added as blocking question 7 | ADR-0005 deadline closure: ADR-0004 Q1 spike pending; acceptance deferred, never partial |
 | 2026-11-05 | ADR-0004 open question 1 spike resolved: only `execute.before` can reject a call; `execute.before` rewrites input, `execute.after` rewrites the result; `Tool.Error` construction recorded; §11 question 7 closed | Live run in OpenCode 2.1.4 with `@opencode/plugin@2.1.4`; no status change, acceptance remains at the 2026-11-08 deadline |
 | 2026-11-06 | Feedback deadline extended to 2026-11-15 | Both initiatives close together with RFC-0002; ADR-0004 questions 2–4 are due 2026-11-10, after the previous deadline |
+| 2026-11-09 | §11 drift row 2 fixed: `asb exec` and env-file delivery landed (PR #3, `2adde64`) with a red/green argv regression test and mutation evidence; ADR-0001 question 6 marked implemented | Phase 6 implementation before acceptance; statuses unchanged (`In review` / `Proposed (in RFC)`) |
