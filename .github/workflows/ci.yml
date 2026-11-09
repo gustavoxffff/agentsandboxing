@@ -47,7 +47,11 @@ jobs:
 
       - name: Install pinned OpenCode under /usr/local
         run: |
-          sudo npm install -g @opencode/cli@2.1.4
+          if ! sudo env PATH="/usr/local/bin:/usr/local/sbin:/usr/sbin:/usr/bin:/sbin:/bin" \
+            npm install -g --prefix /usr/local --no-audit --no-fund @opencode/cli@2.1.4; then
+            sudo sh -c 'tail -n 120 /root/.npm/_logs/*-debug-0.log' || true
+            exit 1
+          fi
           opencode --version
 
       - name: Enable user namespaces for bwrap
