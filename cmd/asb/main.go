@@ -24,6 +24,9 @@ import (
 
 const version = "0.1.0-dev"
 
+// execProcess is swapped in tests; syscall.Exec replaces the process.
+var execProcess = syscall.Exec
+
 func main() {
 	os.Exit(cli(os.Args[1:]))
 }
@@ -38,6 +41,8 @@ func cli(args []string) int {
 		return runCmd(args[1:], false)
 	case "print-config":
 		return runCmd(args[1:], true)
+	case "exec":
+		return execCmd(args[1:])
 	case "init":
 		return initCmd(args[1:])
 	case "doctor":
@@ -69,6 +74,7 @@ func usage(w io.Writer) {
 Usage:
   asb run [flags] [--] [command...]
   asb print-config [flags]
+  asb exec --env-file FILE -- command...
   asb init --profile host|none|allowlist [flags]
   asb doctor
   asb version
@@ -159,6 +165,43 @@ func runCmd(args []string, forcePrint bool) int {
 		return code
 	}
 	return code
+}
+
+// execCmd is the in-sandbox shim: it reads the env file, removes it, and
+// replaces itself with the command. Values never reach the bwrap argv.
+func execCmd(args []string) int {
+	fs := flag.NewFlagSet("exec", flag.ContinueOnError)
+	fs.SetOutput(os.Stderr)
+	var envFile string
+	fs.StringVar(&envFile, "env-file", "", "environment file read before exec")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	command := fs.Args()
+	if envFile == "" {
+		fmt.Fprintln(os.Stderr, "asb exec: --env-file is required")
+		return 2
+	}
+	if len(command) == 0 {
+		fmt.Fprintln(os.Stderr, "asb exec: missing command (use -- command...)")
+		return 2
+	}
+
+	entries, err := sandbox.ReadEnvFile(envFile)
+	if err != nil {
+		_ = os.Remove(envFile)
+		fmt.Fprintf(os.Stderr, "asb exec: %v\n", err)
+		return 1
+	}
+	if err := os.Remove(envFile); err != nil && !os.IsNotExist(err) {
+		fmt.Fprintf(os.Stderr, "asb exec: remove env file: %v\n", err)
+		return 1
+	}
+	if err := execProcess(command[0], command, sandbox.MergeEnv(os.Environ(), entries)); err != nil {
+		fmt.Fprintf(os.Stderr, "asb exec: %v\n", err)
+		return 1
+	}
+	return 0
 }
 
 func initCmd(args []string) int {

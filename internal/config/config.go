@@ -45,6 +45,13 @@ var reservedEnv = map[string]bool{
 
 var envNameRE = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 
+// ValidEnvName reports whether name is a valid environment variable name.
+func ValidEnvName(name string) bool { return envNameRE.MatchString(name) }
+
+// ReservedEnv reports whether name is set by the tool and must never come from
+// the host environment or the env file.
+func ReservedEnv(name string) bool { return reservedEnv[name] }
+
 // ErrNoProfile indicates that no profile was chosen at any level.
 var ErrNoProfile = errors.New("no network profile configured")
 

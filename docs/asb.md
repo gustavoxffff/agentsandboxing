@@ -77,6 +77,11 @@ profile at any level, `asb` fails.
 - The project is mounted read/write; `/usr`, `/etc`, `/bin`, `/sbin`, `/lib`,
   `/lib64`, and `~/.gitconfig` (if it exists) are read-only.
 - `--clearenv` in `bwrap`: only declared variables enter.
+- Values from `env.allow` and `from_file` are written to an ephemeral `0600`
+  env file. `asb exec` reads the file, removes it, and then starts the command;
+  the values never appear in the `bwrap` argv or `/proc/<pid>/cmdline`.
+  `--setenv` carries only `HOME`, `TMPDIR`, and the `XDG_*` variables; the
+  bridge adds the proxy variables inside the sandbox.
 
 ## Network
 
@@ -120,6 +125,7 @@ proxy at `127.0.0.1:<ephemeral-port>` and sets `HTTP_PROXY`, `HTTPS_PROXY`,
 ```sh
 asb run [flags] [--] [command...]
 asb print-config [flags]
+asb exec --env-file FILE -- command...               # internal
 asb init --profile host|none|allowlist [--allow HOST] [--force]
 asb doctor
 asb proxy --socket PATH --allow HOST [--verbose]   # internal

@@ -25,6 +25,7 @@ type Layout struct {
 	// Host
 	HostRoot         string
 	HostOpencodeRoot string
+	HostEnvFile      string
 	ProxyDir         string
 	ProxySocket      string
 
@@ -38,6 +39,7 @@ type Layout struct {
 	InsideProxyDir   string
 	InsideProxySock  string
 	InsideBinary     string
+	InsideEnvFile    string
 }
 
 // NewLayout computes the layout. An empty sandboxID uses the id derived from
@@ -63,9 +65,11 @@ func NewLayout(projectDir, sandboxID string) (Layout, error) {
 	}
 	hostRoot := filepath.Join(stateHome, "asb", "sandboxes", id)
 	hostOpencode := filepath.Join(hostRoot, "opencode")
+	hostEnvFile := filepath.Join(hostRoot, ".asb-env")
 
 	insideRoot := filepath.Join(home, ".local", "state", "asb", "sandboxes", id)
 	insideOpencode := filepath.Join(insideRoot, "opencode")
+	insideEnvFile := filepath.Join(insideRoot, ".asb-env")
 
 	runtimeBase := os.Getenv("XDG_RUNTIME_DIR")
 	if runtimeBase == "" {
@@ -87,6 +91,7 @@ func NewLayout(projectDir, sandboxID string) (Layout, error) {
 		Home:             home,
 		HostRoot:         hostRoot,
 		HostOpencodeRoot: hostOpencode,
+		HostEnvFile:      hostEnvFile,
 		ProxyDir:         proxyDir,
 		ProxySocket:      proxySocket,
 		InsideRoot:       insideRoot,
@@ -98,6 +103,7 @@ func NewLayout(projectDir, sandboxID string) (Layout, error) {
 		InsideProxyDir:   "/run/asb/proxy",
 		InsideProxySock:  "/run/asb/proxy/proxy.sock",
 		InsideBinary:     "/run/asb/bin/asb",
+		InsideEnvFile:    insideEnvFile,
 	}, nil
 }
 

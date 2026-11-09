@@ -19,6 +19,7 @@ func testLayout(t *testing.T) Layout {
 		Home:             home,
 		HostRoot:         root,
 		HostOpencodeRoot: opencode,
+		HostEnvFile:      filepath.Join(root, ".asb-env"),
 		ProxyDir:         filepath.Join(home, "runtime"),
 		ProxySocket:      filepath.Join(home, "runtime", "proxy.sock"),
 		InsideRoot:       root,
@@ -30,6 +31,7 @@ func testLayout(t *testing.T) Layout {
 		InsideProxyDir:   "/run/asb/proxy",
 		InsideProxySock:  "/run/asb/proxy/proxy.sock",
 		InsideBinary:     "/run/asb/bin/asb",
+		InsideEnvFile:    filepath.Join(root, ".asb-env"),
 	}
 }
 
@@ -45,9 +47,10 @@ func build(t *testing.T, profile config.Profile, command ...string) (Layout, []s
 		Layout:     layout,
 		Env: []string{
 			"HOME=" + layout.Home,
-			"PATH=/usr/bin",
+			"TMPDIR=/tmp",
 			"XDG_CONFIG_HOME=" + layout.InsideConfigHome,
 		},
+		EnvFile:    layout.InsideEnvFile,
 		Command:    command,
 		SelfPath:   "/usr/bin/asb",
 		ResolvDest: "/etc/resolv.conf",
@@ -122,6 +125,40 @@ func TestBuildArgsAllowlist(t *testing.T) {
 	}
 	if !containsPair(args, "--ro-bind", layout.ProxyDir) {
 		t.Fatalf("proxy directory not mounted read-only: %v", args)
+	}
+}
+
+func TestBuildArgsUsesExecWrapper(t *testing.T) {
+	for _, profile := range []config.Profile{config.ProfileHost, config.ProfileNone, config.ProfileAllowlist} {
+		layout, args := build(t, profile)
+		if !contains(args, "exec") {
+			t.Fatalf("%s: missing asb exec wrapper: %v", profile, args)
+		}
+		if !containsPair(args, "--env-file", layout.InsideEnvFile) {
+			t.Fatalf("%s: missing --env-file %s: %v", profile, layout.InsideEnvFile, args)
+		}
+		if !containsPair(args, "--ro-bind", "/usr/bin/asb") {
+			t.Fatalf("%s: asb binary not mounted read-only: %v", profile, args)
+		}
+	}
+}
+
+func TestBuildArgsRejectsNonToolSetenv(t *testing.T) {
+	layout := testLayout(t)
+	_, err := BuildArgs(Options{
+		ProjectDir: t.TempDir(),
+		Profile:    config.ProfileNone,
+		Layout:     layout,
+		Env:        []string{"GITHUB_TOKEN=ghp_secret_value"},
+		EnvFile:    layout.InsideEnvFile,
+		Command:    []string{"true"},
+		SelfPath:   "/usr/bin/asb",
+	})
+	if err == nil {
+		t.Fatal("BuildArgs accepted a non-tool --setenv variable")
+	}
+	if strings.Contains(err.Error(), "ghp_secret_value") {
+		t.Fatalf("error leaked the value: %v", err)
 	}
 }
 

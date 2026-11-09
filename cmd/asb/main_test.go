@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"syscall"
 	"testing"
@@ -129,6 +130,64 @@ func TestProxyCmdParsesFlagsAndKeepsReadyFDIdle(t *testing.T) {
 	var st syscall.Stat_t
 	if err := syscall.Fstat(1, &st); err != nil {
 		t.Fatalf("proxyCmd closed descriptor 1: the default -ready-fd must stay negative (%v)", err)
+	}
+}
+
+func TestExecCmdReadsEnvAndRemovesFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "env")
+	if err := os.WriteFile(path, []byte("GITHUB_TOKEN=ghp_secret\x00PATH=/usr/bin\x00"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	old := execProcess
+	defer func() { execProcess = old }()
+	var argv0 string
+	var argv, envv []string
+	execProcess = func(name string, args, env []string) error {
+		argv0 = name
+		argv = append([]string(nil), args...)
+		envv = append([]string(nil), env...)
+		return nil
+	}
+
+	if code := execCmd([]string{"--env-file", path, "--", "/bin/true", "arg"}); code != 0 {
+		t.Fatalf("execCmd returned %d, want 0", code)
+	}
+	if argv0 != "/bin/true" || !reflect.DeepEqual(argv, []string{"/bin/true", "arg"}) {
+		t.Fatalf("unexpected exec target: %q %v", argv0, argv)
+	}
+	joined := strings.Join(envv, "\n")
+	if !strings.Contains(joined, "GITHUB_TOKEN=ghp_secret") {
+		t.Fatalf("env file value missing from exec environment:\n%s", joined)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("env file was not removed before exec: %v", err)
+	}
+}
+
+func TestExecCmdRejectsMissingInput(t *testing.T) {
+	if code := execCmd([]string{"--", "true"}); code != 2 {
+		t.Fatalf("execCmd without --env-file returned %d, want 2", code)
+	}
+	path := filepath.Join(t.TempDir(), "env")
+	if code := execCmd([]string{"--env-file", path}); code != 2 {
+		t.Fatalf("execCmd without a command returned %d, want 2", code)
+	}
+	if code := execCmd([]string{"--env-file", path, "--", "/bin/true"}); code != 1 {
+		t.Fatalf("execCmd with a missing env file returned %d, want 1", code)
+	}
+}
+
+func TestExecCmdRemovesFileWithReservedVariable(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "env")
+	if err := os.WriteFile(path, []byte("HOME=/evil\x00"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if code := execCmd([]string{"--env-file", path, "--", "/bin/true"}); code != 1 {
+		t.Fatalf("execCmd with a reserved variable returned %d, want 1", code)
+	}
+	if _, err := os.Stat(path); !os.IsNotExist(err) {
+		t.Fatalf("env file was not removed after a read error: %v", err)
 	}
 }
 
