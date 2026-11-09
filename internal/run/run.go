@@ -91,10 +91,17 @@ func Execute(o Options) (int, error) {
 		return 1, err
 	}
 
-	env, err := buildEnv(cfg, layout, o.LookupEnv)
+	env, err := buildSandboxEnv(cfg, o.LookupEnv)
 	if err != nil {
 		return 1, err
 	}
+	if err := sandbox.WriteEnvFile(layout.HostEnvFile, env); err != nil {
+		return 1, err
+	}
+	// `asb exec` removes the file inside the sandbox before the command runs;
+	// this defer covers failures before that point.
+	defer os.Remove(layout.HostEnvFile)
+	toolEnv := buildToolEnv(layout)
 
 	var proxyCmd *exec.Cmd
 	if cfg.Profile == config.ProfileAllowlist {
@@ -126,7 +133,8 @@ func Execute(o Options) (int, error) {
 		ProjectDir: cfg.ProjectDir,
 		Profile:    cfg.Profile,
 		Layout:     layout,
-		Env:        env,
+		Env:        toolEnv,
+		EnvFile:    layout.InsideEnvFile,
 		Command:    command,
 		SelfPath:   selfPath,
 		ResolvDest: sandbox.ResolvDestination(),
@@ -167,26 +175,15 @@ func hasArg(args []string, want string) bool {
 	return false
 }
 
-func buildEnv(cfg config.Resolved, layout sandbox.Layout, lookup func(string) (string, bool)) ([]string, error) {
+// buildSandboxEnv returns the values inherited from the host allowlist and the
+// from_file secrets. They are written to the env file, never to the bwrap argv.
+func buildSandboxEnv(cfg config.Resolved, lookup func(string) (string, bool)) ([]string, error) {
 	values := map[string]string{}
 	for _, kv := range cfg.BuildEnv(lookup) {
 		name, value, ok := strings.Cut(kv, "=")
 		if !ok {
 			return nil, fmt.Errorf("invalid environment: %q", kv)
 		}
-		values[name] = value
-	}
-	// HOME and XDG are set by the tool, not inherited.
-	tool := map[string]string{
-		"HOME":            layout.Home,
-		"TMPDIR":          "/tmp",
-		"XDG_CONFIG_HOME": layout.InsideConfigHome,
-		"XDG_DATA_HOME":   layout.InsideDataHome,
-		"XDG_STATE_HOME":  layout.InsideStateHome,
-		"XDG_CACHE_HOME":  layout.InsideCacheHome,
-		"XDG_RUNTIME_DIR": layout.InsideRuntimeDir,
-	}
-	for name, value := range tool {
 		values[name] = value
 	}
 	names := make([]string, 0, len(values))
@@ -199,6 +196,30 @@ func buildEnv(cfg config.Resolved, layout sandbox.Layout, lookup func(string) (s
 		env = append(env, name+"="+values[name])
 	}
 	return env, nil
+}
+
+// buildToolEnv returns the non-secret variables set by the tool. Only these
+// values use bwrap --setenv.
+func buildToolEnv(layout sandbox.Layout) []string {
+	values := map[string]string{
+		"HOME":            layout.Home,
+		"TMPDIR":          "/tmp",
+		"XDG_CONFIG_HOME": layout.InsideConfigHome,
+		"XDG_DATA_HOME":   layout.InsideDataHome,
+		"XDG_STATE_HOME":  layout.InsideStateHome,
+		"XDG_CACHE_HOME":  layout.InsideCacheHome,
+		"XDG_RUNTIME_DIR": layout.InsideRuntimeDir,
+	}
+	names := make([]string, 0, len(values))
+	for name := range values {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	env := make([]string, 0, len(names))
+	for _, name := range names {
+		env = append(env, name+"="+values[name])
+	}
+	return env
 }
 
 func startProxy(o Options, layout sandbox.Layout, allow []string) (*exec.Cmd, error) {

@@ -16,10 +16,23 @@ type Options struct {
 	ProjectDir string
 	Profile    config.Profile
 	Layout     Layout
-	Env        []string // KEY=VALUE already filtered (no proxy; the bridge sets it in allowlist)
+	Env        []string // tool-defined values only (HOME, XDG, TMPDIR); never secrets
+	EnvFile    string   // env file path inside the sandbox, read by `asb exec`
 	Command    []string // command and arguments; the path is resolved here
-	SelfPath   string   // asb binary, mounted read-only in allowlist
+	SelfPath   string   // asb binary, mounted read-only so `asb exec` can run
 	ResolvDest string   // real target of /etc/resolv.conf on the host
+}
+
+// toolEnvNames is the complete set of variables the tool may pass through
+// bwrap --setenv. Proxy variables are added later by the bridge.
+var toolEnvNames = map[string]bool{
+	"HOME":            true,
+	"TMPDIR":          true,
+	"XDG_CONFIG_HOME": true,
+	"XDG_DATA_HOME":   true,
+	"XDG_STATE_HOME":  true,
+	"XDG_CACHE_HOME":  true,
+	"XDG_RUNTIME_DIR": true,
 }
 
 // BuildArgs builds the complete bwrap arguments, ending in the command.
@@ -29,6 +42,12 @@ func BuildArgs(o Options) ([]string, error) {
 	}
 	if o.Layout.Home == "" {
 		return nil, fmt.Errorf("layout without HOME")
+	}
+	if o.EnvFile == "" {
+		return nil, fmt.Errorf("missing env file path")
+	}
+	if o.SelfPath == "" {
+		return nil, fmt.Errorf("missing asb binary path")
 	}
 	project, err := filepath.Abs(o.ProjectDir)
 	if err != nil {
@@ -72,20 +91,21 @@ func BuildArgs(o Options) ([]string, error) {
 		args = append(args, "--ro-bind", mount, mount)
 	}
 
+	// `asb exec` reads the env file and removes it before the command runs.
+	args = append(args, "--ro-bind", o.SelfPath, o.Layout.InsideBinary)
 	if o.Profile == config.ProfileAllowlist {
-		if o.SelfPath == "" {
-			return nil, fmt.Errorf("allowlist profile requires the path to the asb binary")
-		}
-		args = append(args,
-			"--ro-bind", o.SelfPath, o.Layout.InsideBinary,
-			"--ro-bind", o.Layout.ProxyDir, o.Layout.InsideProxyDir,
-		)
+		args = append(args, "--ro-bind", o.Layout.ProxyDir, o.Layout.InsideProxyDir)
 		command = append([]string{
 			o.Layout.InsideBinary, "bridge",
 			"--socket", o.Layout.InsideProxySock,
 			"--",
 		}, command...)
 	}
+	command = append([]string{
+		o.Layout.InsideBinary, "exec",
+		"--env-file", o.EnvFile,
+		"--",
+	}, command...)
 
 	// resolv.conf: mount over the real target of the symlink (WSL and systemd-resolved).
 	if o.ResolvDest != "" {
@@ -109,7 +129,8 @@ func BuildArgs(o Options) ([]string, error) {
 		args = append(args, "--unshare-net")
 	}
 
-	// Closed environment: nothing from the host enters unless it is in the allowlist.
+	// Closed environment: --setenv carries only the variables the tool owns.
+	// Values from env.allow/from_file travel in the env file (RFC-0001 §5.4).
 	args = append(args, "--clearenv")
 	env := append([]string(nil), o.Env...)
 	sort.Strings(env)
@@ -117,6 +138,9 @@ func BuildArgs(o Options) ([]string, error) {
 		name, value, ok := strings.Cut(kv, "=")
 		if !ok || name == "" {
 			return nil, fmt.Errorf("invalid environment variable: %q", kv)
+		}
+		if !toolEnvNames[name] {
+			return nil, fmt.Errorf("--setenv is restricted to tool variables: %s", name)
 		}
 		args = append(args, "--setenv", name, value)
 	}
