@@ -182,7 +182,7 @@ v1 is considered ready when:
 
 **Resolved on 2026-10-29:** npm/pip through the proxy (both passed), user-mode NAT in the current profile (no tun, `mknod` denied, no helpers; `unshare -Urn` without egress), config (`asb.toml` + precedence), script migration (a wrapper that fails without `asb`; **replaced on 2026-11-01: wrapper removed**), startup (measure, no target), Go (kept), and base env allowlist (8 variables).
 
-**Decided on 2026-11-01 (implementation pending):** wrapper/legacy removed; env secrets by fd/file (`asb exec`); `[git]` `minimal`/`manual`; expanded `allowlist` gate; dogfood after the gate; `/tmp/asb-<uid>/<hash>` socket; two-part startup; preflight with `--unshare-net`.
+**Decided on 2026-11-01 (implementation in progress; env delivery landed on 2026-11-09 in PR #3):** wrapper/legacy removed; env secrets by fd/file (`asb exec`); `[git]` `minimal`/`manual`; expanded `allowlist` gate; dogfood after the gate; `/tmp/asb-<uid>/<hash>` socket; two-part startup; preflight with `--unshare-net`.
 
 | # | Question | Owner | Blocks? | Due | Status |
 |---|---|---|---|---|---|
@@ -191,7 +191,7 @@ v1 is considered ready when:
 | 3 | Credentials: login per sandbox vs. `auth export/import` (ADR-0002) | Gustavo | Not for v1 | ADR-0002 | Out of this ADR |
 | 4 | Transparent proxy as fallback | Gustavo | No | — | Closed: out of v1 |
 | 5 | Residual risk of `unshare -Urn` if a device/tun appears in the future | Gustavo | No | dogfood review | Open |
-| 6 | Env secrets by fd/file (`asb exec`) and argv test | Gustavo | Yes, for `allowlist` | before release | Open |
+| 6 | Env secrets by fd/file (`asb exec`) and argv test | Gustavo | Yes, for `allowlist` | before release | Implemented (PR #3, 2026-11-09) |
 | 7 | Expanded matrix: git, Node, OpenCode, rebinding, NAT, `--clearenv`, `--standalone`, host writes | Gustavo | Yes, for `allowlist` | before release | Open |
 | 8 | `[git] mode = minimal`/`manual` and removal of the `.gitconfig` mount | Gustavo | Yes, for `allowlist` | before release | Open |
 | 9 | `/tmp/asb` fallback and regression test | Gustavo | Yes, for `allowlist` | before release | Open |
@@ -214,3 +214,4 @@ v1 is considered ready when:
 | 2026-10-29 | Status → `Proposed (in RFC)`; link to RFC-0001 | RFC generated from the ADR corrected by the grill |
 | 2026-10-29 | Pending items closed: `asb`/`asb.toml` + precedence, base env allowlist, repeated matrix (npm/pip passed; residual `unshare -Urn`), script migration, startup without a numeric target | RFC closure review |
 | 2026-11-01 | Grill revision: wrapper/legacy removed; env secrets by fd/file; `[git]` `minimal`/`manual`; expanded `allowlist` gate; dogfood after the gate; socket, startup, and preflight corrections | ADR-0001 and RFC-0001 revision with code evidence (tests, smoke, and `/proc/<pid>/cmdline`) |
+| 2026-11-09 | Open question 6 marked implemented: `asb exec` + env-file delivery (PR #3, `2adde64`); no semantic change to the decision | RFC-0001 §11 drift row 2 fixed with a red/green argv regression test and mutation evidence |
