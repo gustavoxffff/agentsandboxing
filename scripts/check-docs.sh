@@ -31,6 +31,26 @@ check_links() {
   done < <(grep -oE '\]\([^)]+\)' "$file" | sed 's/^](//; s/)$//')
 }
 
+check_supersession() {
+  local file="$1"
+  local target num old newnum
+  newnum="$(basename "$file" | grep -oE '^[0-9]{4}')"
+  while IFS= read -r target; do
+    num="$(printf '%s' "$target" | grep -oE 'ADR-[0-9]{4}' | head -n1)"
+    [ -z "$num" ] && continue
+    old="$(find ./docs/adr -maxdepth 1 -name "${num#ADR-}-*.md" | head -n1)"
+    if [ -z "$old" ]; then
+      printf 'missing superseded ADR: %s -> %s\n' "$file" "$num" >&2
+      fail=1
+      continue
+    fi
+    if ! grep -qE "^- \*\*Superseded by:\*\* ADR-${newnum}([^0-9]|$)" "$old"; then
+      printf 'missing back-reference: %s -> ADR-%s\n' "$old" "$newnum" >&2
+      fail=1
+    fi
+  done < <(grep -E '^- \*\*Supersedes:\*\* ' "$file" || true)
+}
+
 check_metadata() {
   local file="$1"
   local base
@@ -65,6 +85,11 @@ check_metadata() {
         printf 'missing metadata: %s: RFC link\n' "$file" >&2
         fail=1
       fi
+      if ! grep -qE '^- \*\*(Supersedes / Related|Supersedes):\*\* ' "$file"; then
+        printf 'missing metadata: %s: Supersedes\n' "$file" >&2
+        fail=1
+      fi
+      check_supersession "$file"
       ;;
     ./docs/rfc/*)
       if ! grep -qE '^- \*\*Feedback deadline:\*\* ' "$file"; then

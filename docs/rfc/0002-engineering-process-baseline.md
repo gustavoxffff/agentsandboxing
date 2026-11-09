@@ -1,9 +1,9 @@
 # RFC-0002: Engineering process baseline: RFC/ADR lifecycle, English-only artifacts, and mandatory mutation/regression tests
 
-- **Status:** Draft
+- **Status:** In review
 - **Author(s):** Gustavo
 - **Reviewers:** Gustavo (self-review); [FILL: external reviewer, if any]
-- **Date:** 2026-11-01
+- **Date:** 2026-11-01 (creation); 2026-11-09 (status to `In review`)
 - **Feedback deadline:** 2026-11-15 (extended from 2026-11-08: acceptance criteria 6 and 8 need a pinned Gremlins run in CI and a supersession dry run, which depend on open questions 4 and 5)
 - **Related ADRs:** [ADR-0005](../adr/0005-rfc-adr-lifecycle.md), [ADR-0006](../adr/0006-english-only-artifacts.md), [ADR-0007](../adr/0007-mandatory-mutation-and-regression-tests.md)
 - **Supersedes / Related:** [RFC-0001](0001-configurable-sandbox-for-agents.md), [ADR-0001](../adr/0001-sandbox-opencode-com-bwrap.md), [ADR-0002](../adr/0002-per-sandbox-state-and-credentials.md), [ADR-0003](../adr/0003-pinned-skills-and-snapshot.md), [ADR-0004](../adr/0004-quality-gate-hooks.md)
@@ -242,16 +242,16 @@ stateDiagram-v2
 
 This RFC is accepted when all of the following are true:
 
-- [ ] RFC-0002 and ADR-0005/6/7 follow the new format: the RFC has no final decision; the ADRs have no alternatives section and link to the RFC.
-- [ ] `docs/rfc/TEMPLATE.md` and `docs/adr/TEMPLATE.md` exist and encode the two roles.
-- [ ] The PR checklist and the CI metadata/link check exist and fail on a missing status, RFC link, or `Supersedes`.
-- [ ] ADR-0002..0004 link to RFC-0001; RFC-0001's deadline is updated; no content rewrite.
-- [ ] The translation PR is merged; new artifacts are English; CLI help/errors and tests are English; renamed files have no broken links.
-- [ ] Gremlins v0.6.0 runs on PR diff and weekly full; the 70/60 gate is green on the baseline; the baseline is recorded; a seeded bug is killed.
-- [ ] The regression-test template requires the red run and the SHA-256 of the test file; a demo PR shows both.
-- [ ] No accepted ADR is semantically edited; a supersession dry run passes.
-- [ ] Every open question in §11 is resolved or explicitly marked non-blocking.
-- [ ] RFC-0001 is accepted only after the wrapper/`asb exec` drift is fixed or recorded.
+- [x] RFC-0002 and ADR-0005/6/7 follow the new format: the RFC has no final decision; the ADRs have no alternatives section and link to the RFC. (Checked 2026-11-09: §6 is explicitly non-binding; ADR-0005/6/7 have Context, Decision, Consequences, Confirmation, Revisions and a single RFC link.)
+- [x] `docs/rfc/TEMPLATE.md` and `docs/adr/TEMPLATE.md` exist and encode the two roles. (Checked 2026-11-09.)
+- [x] The PR checklist and the CI metadata/link check exist and fail on a missing status, RFC link, or `Supersedes`. (Checked 2026-11-09: `.github/pull_request_template.md`; `scripts/check-docs.sh` fails on missing `Status`, `Date`, `Deciders`, RFC link, `Supersedes`, and on a broken supersession back-reference. Red/green in §13 and the Revisions row of this date.)
+- [x] ADR-0002..0004 link to RFC-0001; RFC-0001's deadline is updated; no content rewrite. (Checked 2026-11-09.)
+- [x] The translation PR is merged; new artifacts are English; CLI help/errors and tests are English; renamed files have no broken links. (Checked 2026-11-09: commit `a1731ba`; `scripts/check-docs.sh` passes.)
+- [x] Gremlins v0.6.0 runs on PR diff and weekly full; the 70/60 gate is green on the baseline; the baseline is recorded; a seeded bug is killed. (Checked 2026-11-09: `.github/workflows/ci.yml` jobs `mutation-diff`/`mutation-full`; baseline 80.43% efficacy / 74.19% mutant coverage; seeded-bug check in §13.)
+- [x] The regression-test template requires the red run and the SHA-256 of the test file; a demo PR shows both. (Checked 2026-11-09: `.github/pull_request_template.md` requires both; PR #2 carries the red run, the test-file SHA-256, and the green run.)
+- [x] No accepted ADR is semantically edited; a supersession dry run passes. (Checked 2026-11-06: throwaway worktree dry run; `scripts/check-docs.sh` also validates the back-reference as of 2026-11-09.)
+- [x] Every open question in §11 is resolved or explicitly marked non-blocking. (Checked 2026-11-09: Q2, Q7, and Q9 resolved; Q6 and Q8 remain explicitly non-blocking with due dates.)
+- [x] RFC-0001 is accepted only after the wrapper/`asb exec` drift is fixed or recorded. (Checked 2026-11-03: wrapper fixed; `asb exec` drift recorded in RFC-0001 §11 and ADR-0001 Q6.)
 
 ## 11. Open questions
 
@@ -269,15 +269,20 @@ This RFC is accepted when all of the following are true:
 | 4 | Gremlins `--diff` base in CI and fork behavior | Use the pull-request base SHA from the event (`github.event.pull_request.base.sha`; `github.event.before` on push) and skip the job when the diff is empty; the weekly full run covers `main` | 2026-11-06 decision; `gremlins unleash --help` (`-D, --diff string: diff branch or commit`) |
 | 5 | Where to record equivalent mutants | `docs/mutation-triage.md`, a single table linked from `docs/README.md`; ADR-0007 references it | 2026-11-06 decision; one canonical home per ADR-0008 |
 
+**Resolved on 2026-11-09:**
+
+| # | Question | Resolution | Evidence |
+|---|---|---|---|
+| 2 | Exact CI metadata/link check: script vs. action; required fields | A repository-local script, not a third-party action. `scripts/check-docs.sh` validates relative links; for RFCs `Status`, `Date`, `Feedback deadline`; for ADRs `Status`, `Date`, `Deciders`, a linked RFC, `Supersedes / Related`, and the back-reference when an ADR declares `Supersedes: ADR-NNNN` | `scripts/check-docs.sh`; red run on a fixture without `Supersedes` and on a supersession without a back-reference; green on the tree. Script SHA-256 at red/green time: `4a8c3cb46347002a1f69ee4d8b9dec96d357ab65382d40301bf95a447edbcc48` |
+| 7 | Whether accepted ADRs need CODEOWNERS or a CI guard against edits | No CODEOWNERS and no edit-detection CI guard in v1. The semantic freeze is enforced by review, the PR template, and a Revisions row, as ADR-0005 already states ("Status transitions and freeze are reviewed by humans; there is no state-machine linter in v1"). Revisit if a frozen ADR is edited | ADR-0005 Enforcement; `.github/pull_request_template.md` |
+| 9 | Whether commit/PR/issue titles are enforced by CI or review only | Review only. ADR-0006 explicitly rules out a language linter in v1; the PR template and review checklist carry the English-only rule | ADR-0006 Enforcement |
+
 **Still open:**
 
 | # | Question | Owner | Blocks approval? | Due |
 |---|---|---|---|---|
-| 2 | Exact CI metadata/link check: script vs. action; required fields | Gustavo | No | 2026-11-08 |
 | 6 | CI runtime of Gremlins; threshold for falling back to weekly only | Gustavo | No | After the first CI run |
-| 7 | Whether accepted ADRs need CODEOWNERS or a CI guard against edits | Gustavo | No | 2026-11-15 |
 | 8 | Whether "every ADR requires an RFC" creates too many RFCs | Gustavo | No | Revisit after 3 initiatives |
-| 9 | Whether commit/PR/issue titles are enforced by CI or review only | Gustavo | No | 2026-11-15 |
 
 ## 12. Questions for reviewers
 
@@ -305,6 +310,7 @@ This RFC is accepted when all of the following are true:
 - Local run, 2026-11-06: `go install github.com/go-gremlins/gremlins/cmd/gremlins@v0.6.0`, then `gremlins unleash --workers 4 --timeout-coefficient 3 --threshold-efficacy 70 --threshold-mcover 60 --output /tmp/opencode/gremlins-v0.6.0-2026-11-06.json`; 185 killed, 45 lived, 80 not covered, 2 timed out; efficacy 80.43%, mutant coverage 74.19%; 27 s; exit 0, so the 70/60 thresholds pass. The binary prints `gremlins version dev` because the version is injected at build time; the pin is the module version in the install command. The 45 `LIVED` mutants are listed in [`docs/mutation-triage.md`](../mutation-triage.md).
 - Seeded-bug check, 2026-11-06: changing `r < 'a'` to `r <= 'a'` in `ValidateSandboxID` made `go test ./internal/config` fail in `TestValidateSandboxID` and `TestConfigValidation`; reverting restored green. Removing `TestValidateSandboxID` then moved four mutants at `internal/config/config.go:501` from `KILLED` to `LIVED`, so that test is what kills them; efficacy fell from 80.43% to 78.70%.
 - Supersession dry run, 2026-11-06: in a throwaway worktree (not committed), a proposed ADR-0010 declared `Supersedes: ADR-0008` and ADR-0008 gained `Superseded by: ADR-0010` plus a Revisions row; `scripts/check-docs.sh` passed (13 metadata files, 104 links) and both directions resolved.
+- Docs-check regression, 2026-11-09: `scripts/check-docs.sh` failed on an ADR fixture without `Supersedes` (`missing metadata: ... Supersedes`, exit 1) and on a fixture declaring `Supersedes: ADR-0008` without the back-reference (`missing back-reference: ./docs/adr/0008-... -> ADR-9999`, exit 1); the fixture was removed and the real tree passed (`docs check passed: 12 file(s), 103 link(s)`). Script SHA-256 at red and green time: `4a8c3cb46347002a1f69ee4d8b9dec96d357ab65382d40301bf95a447edbcc48`.
 - User request and grill answers, 2026-11-01 (conversation record).
 
 ## Revisions
@@ -317,3 +323,6 @@ This RFC is accepted when all of the following are true:
 | 2026-11-06 | Open questions 4 and 5 resolved: PR event SHA as the diff base; `docs/mutation-triage.md` as the triage log | Decider answers; acceptance moved to 2026-11-15 together with RFC-0001 |
 | 2026-11-06 | Gremlins v0.6.0 diff and weekly jobs wired through `scripts/mutation.sh`; triage log created with the 45-mutant backlog; seeded-bug and supersession checks run | Acceptance criteria 6 and 8 evidence; ADR-0007 implemented ahead of acceptance and recorded as unvalidated premises |
 | 2026-11-06 | Reviewers metadata: leftover Portuguese placeholder replaced with an English `[FILL: ...]` marker | English-only rule (ADR-0006); non-semantic edit |
+| 2026-11-09 | Status `Draft` → `In review`; open questions 2, 7, and 9 resolved; acceptance criteria re-checked with evidence | The 2026-11-15 feedback deadline is active; Q2 was overdue; Q7 and Q9 were due at acceptance |
+| 2026-11-09 | `scripts/check-docs.sh` now validates `Supersedes` presence and the supersession back-reference; red/green runs recorded in §13 | ADR-0009 requires the docs check to validate `Supersedes`; pre-acceptance verification found the implementation gap |
+| 2026-11-09 | Acceptance criterion 7 ticked; demo PR #2 carries the red run and the test-file SHA-256 | Criterion 7 requires a demo PR; the PR is the evidence |
