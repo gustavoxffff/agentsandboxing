@@ -196,23 +196,23 @@ In `allowlist`:
 
 The v1 proxy resolves **IPv4 only** and fails closed for a host with only AAAA. This is intentional: it avoids opening an IPv6 path that the netns does not control.
 
-**Current coverage of `scripts/matrix.sh`:** the script covers `none` (empty IPv4/IPv6 routes, external curl, direct DNS, `/dev/net/tun`, `mknod`, and `CapBnd`), `host` (curl to an allowed domain), and `allowlist` (allowed/denied domain, metadata, direct IP, QUIC, routes, `unshare -Urn`, and npm/pip when installed in `/usr`). It does **not** cover git, Node, OpenCode, DNS rebinding, user-mode NAT with helpers installed, `--clearenv`, `--standalone`, writes to the host, or the `env.allow`/`from_file` argv.
+**Current coverage of `scripts/matrix.sh`:** the script covers `none` (empty IPv4/IPv6 routes, external curl, direct DNS, `/dev/net/tun`, `mknod`, and `CapBnd`), `host` (curl to an allowed domain), and `allowlist` (allowed/denied domain, metadata, direct IP, QUIC, routes, `unshare -Urn`, npm/pip when installed in `/usr`, git `ls-remote` to an allowed and a denied domain, Node `fetch` with and without `NODE_USE_ENV_PROXY` when Node 24+ is in `/usr`, DNS rebinding through `127.0.0.1.nip.io` and `10.0.0.1.nip.io`, `/dev/net/tun`/`mknod`/`CapBnd` hardening, `--clearenv` plus env-file delivery for `env.allow` and `from_file`, secrets absent from the host `bwrap` argv and the in-sandbox cmdline, and host writes to the global OpenCode paths and `opencode.db`).
 
-**Missing in CI (blocking for `allowlist` release):**
+**Coverage of the `allowlist` release gaps:**
 
-| Gap | Minimum test |
-|---|---|
-| git | `git ls-remote` to an allowed and a denied domain through the proxy |
-| Node | `fetch` with `NODE_USE_ENV_PROXY=1`; fails without the flag |
-| OpenCode | `--standalone` inside `bwrap`; process tree without the host service |
-| DNS rebinding | public hostname resolving to loopback/private IP → 403 |
-| User-mode NAT | with `slirp4netns`/`pasta` installed, no egress |
-| `--clearenv` | undeclared variable absent; declared variable present |
-| `--standalone` | server child of `bwrap` in all profiles |
-| Host write | write to global config/data/state/cache and `opencode.db` fails |
-| Secrets in argv | `env.allow`/`from_file` absent from `/proc/<pid>/cmdline` |
+| Gap | Minimum test | Status |
+|---|---|---|
+| git | `git ls-remote` to an allowed and a denied domain through the proxy | Automated in `scripts/matrix.sh` (2026-11-09) |
+| Node | `fetch` with `NODE_USE_ENV_PROXY=1`; fails without the flag | Automated when Node 24+ is in `/usr`; the CI image still installs Node 18, so the test skips there |
+| OpenCode | `--standalone` inside `bwrap`; process tree without the host service | Open: CI does not install OpenCode and its version is not pinned (Q4/Q13); the script checks XDG paths when the binary is in `/usr` |
+| DNS rebinding | public hostname resolving to loopback/private IP → 403 | Automated in `scripts/matrix.sh` (2026-11-09) |
+| User-mode NAT | with `slirp4netns`/`pasta` installed, no egress | Partially automated: `/dev/net/tun`, `mknod`, and `CapBnd` are checked in `allowlist`; no helper is installed in CI, so the live helper path is open |
+| `--clearenv` | undeclared variable absent; declared variable present | Automated in `scripts/matrix.sh` (2026-11-09) |
+| `--standalone` | server child of `bwrap` in all profiles | Open with OpenCode |
+| Host write | write to global config/data/state/cache and `opencode.db` fails | Automated in `scripts/matrix.sh` (2026-11-09) |
+| Secrets in argv | `env.allow`/`from_file` absent from `/proc/<pid>/cmdline` | Automated in `scripts/matrix.sh` (2026-11-09) |
 
-**Gate:** v1 can be dogfooded with `host`/`none`; `allowlist` is announced as ready only when the **automated matrix in CI** reproduces these results and closes the gaps above. npm/pip and user-mode NAT passed manually on 2026-10-29; the gate is no longer "test npm/pip" but "automate the entire matrix". The spike used minimal Python proxy/bridge; the Go implementation must reproduce the matrix and cover parsing, timeouts, proxy drops mid-session, and network errors.
+**Gate:** v1 can be dogfooded with `host`/`none`; `allowlist` is announced as ready only when the **automated matrix in CI** reproduces these results and closes the remaining OpenCode and user-mode NAT gaps. npm/pip and user-mode NAT passed manually on 2026-10-29; the gate is no longer "test npm/pip" but "automate the entire matrix". The spike used minimal Python proxy/bridge; the Go implementation must reproduce the matrix and cover parsing, timeouts, proxy drops mid-session, and network errors.
 
 ### 5.4 State, environment, and credentials
 
@@ -444,3 +444,4 @@ No open question blocks the v1 design or acceptance of this RFC; the remaining q
 | 2026-11-05 | ADR-0004 open question 1 spike resolved: only `execute.before` can reject a call; `execute.before` rewrites input, `execute.after` rewrites the result; `Tool.Error` construction recorded; §11 question 7 closed | Live run in OpenCode 2.1.4 with `@opencode/plugin@2.1.4`; no status change, acceptance remains at the 2026-11-08 deadline |
 | 2026-11-06 | Feedback deadline extended to 2026-11-15 | Both initiatives close together with RFC-0002; ADR-0004 questions 2–4 are due 2026-11-10, after the previous deadline |
 | 2026-11-09 | §11 drift row 2 fixed: `asb exec` and env-file delivery landed (PR #3, `2adde64`) with a red/green argv regression test and mutation evidence; ADR-0001 question 6 marked implemented | Phase 6 implementation before acceptance; statuses unchanged (`In review` / `Proposed (in RFC)`) |
+| 2026-11-09 | §5.3 coverage refreshed: `scripts/matrix.sh` now automates git, DNS rebinding, `--clearenv`/env file, secrets in argv, host writes, and `allowlist` primitive hardening; Node is conditional on Node 24+, OpenCode and a live user-mode NAT helper remain open | Phase 6 matrix work before acceptance; no status change |
