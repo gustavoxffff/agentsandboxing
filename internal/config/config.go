@@ -288,6 +288,7 @@ func Resolve(projectDir string, cli Overrides) (Resolved, error) {
 			}
 			normalized = append(normalized, nk)
 		}
+		sort.Strings(normalized)
 		res.GitKeys = normalized
 	}
 

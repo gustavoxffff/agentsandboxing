@@ -297,6 +297,86 @@ func TestGitConfigContent(t *testing.T) {
 	if content != "" {
 		t.Fatalf("missing host .gitconfig should produce no content:\n%s", content)
 	}
+
+	// Multiple sections: section header changes, newline between sections.
+	writeMode(t, filepath.Join(home, ".gitconfig"), `
+[user]
+	name = Git User
+[core]
+	editor = vim
+`, 0o600)
+	content, err = GitConfigContent(home, GitModeManual, []string{"user.name", "core.editor"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(content, "[user]\nname = Git User\n\n[core]\neditor = vim") {
+		t.Fatalf("multi-section output incorrect:\n%s", content)
+	}
+
+	// No matching keys: empty content, no file written.
+	writeMode(t, filepath.Join(home, ".gitconfig"), `
+[core]
+	editor = vim
+`, 0o600)
+	content, err = GitConfigContent(home, GitModeMinimal, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if content != "" {
+		t.Fatalf("no matching keys should produce no content:\n%s", content)
+	}
+}
+
+func TestResolveGitModeDefaultAndKeys(t *testing.T) {
+	project := t.TempDir()
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+
+	// Default mode is minimal.
+	write(t, filepath.Join(project, "asb.toml"), `
+version = 1
+[network]
+profile = "host"
+`)
+	cfg, err := Resolve(project, Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.GitMode != GitModeMinimal {
+		t.Fatalf("default git mode = %q, expected minimal", cfg.GitMode)
+	}
+
+	// Manual mode with keys is accepted.
+	write(t, filepath.Join(project, "asb.toml"), `
+version = 1
+[network]
+profile = "host"
+[git]
+mode = "manual"
+keys = ["user.name", "user.email"]
+`)
+	cfg, err = Resolve(project, Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if cfg.GitMode != GitModeManual {
+		t.Fatalf("git mode = %q, expected manual", cfg.GitMode)
+	}
+	if len(cfg.GitKeys) != 2 || cfg.GitKeys[0] != "user.email" || cfg.GitKeys[1] != "user.name" {
+		t.Fatalf("git keys = %#v, expected [user.email user.name]", cfg.GitKeys)
+	}
+
+	// git.keys without manual mode is rejected.
+	write(t, filepath.Join(project, "asb.toml"), `
+version = 1
+[network]
+profile = "host"
+[git]
+mode = "minimal"
+keys = ["user.name"]
+`)
+	if _, err := Resolve(project, Overrides{}); err == nil {
+		t.Fatal("git.keys with non-manual mode should be rejected")
+	}
 }
 
 func TestGitModeValidation(t *testing.T) {

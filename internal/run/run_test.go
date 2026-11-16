@@ -2,6 +2,8 @@ package run
 
 import (
 	"bytes"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -92,6 +94,65 @@ func TestPrintConfigDoesNotLeakValues(t *testing.T) {
 		if !strings.Contains(text, want) {
 			t.Fatalf("missing %q:\n%s", want, text)
 		}
+	}
+}
+
+// TestExecuteDoesNotWriteGitconfigWhenNoMatchingKeys verifies that when
+// [git] mode is not off but no keys match the host .gitconfig, no .gitconfig
+// file is written to the sandbox state dir (ADR-0001: host .gitconfig never
+// mounted; only generated when there are keys to copy).
+func TestExecuteDoesNotWriteGitconfigWhenNoMatchingKeys(t *testing.T) {
+	project := t.TempDir()
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+	t.Setenv("HOME", t.TempDir())
+
+	// Host .gitconfig has keys that don't match minimal mode.
+	home := os.Getenv("HOME")
+	if err := os.WriteFile(filepath.Join(home, ".gitconfig"), []byte("[core]\n\teditor = vim\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := "version = 1\n\n[network]\nprofile = \"none\"\n\n[git]\nmode = \"minimal\"\n"
+	if err := os.WriteFile(filepath.Join(project, "asb.toml"), []byte(cfg), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	bin := t.TempDir()
+	if err := os.WriteFile(filepath.Join(bin, "bwrap"), []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	var stdout, stderr bytes.Buffer
+	code, err := Execute(Options{
+		ProjectDir: project,
+		Command:    []string{"true"},
+		Stdin:      strings.NewReader(""),
+		Stdout:     &stdout,
+		Stderr:     &stderr,
+		SelfPath:   "/usr/bin/asb",
+		LookupEnv: func(name string) (string, bool) {
+			if name == "PATH" {
+				return "/usr/bin", true
+			}
+			return "", false
+		},
+	})
+	if err != nil || code != 0 {
+		t.Fatalf("Execute = (%d, %v)\nstderr:\n%s", code, err, stderr.String())
+	}
+
+	// Resolve the layout to find HostGitConfig and verify no file was written.
+	resolved, err := config.Resolve(project, config.Overrides{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	layout, err := sandbox.NewLayout(resolved.ProjectDir, resolved.SandboxID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(layout.HostGitConfig); !os.IsNotExist(err) {
+		t.Fatalf(".gitconfig was written despite no matching keys: %v", err)
 	}
 }
 
