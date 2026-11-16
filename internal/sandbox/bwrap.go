@@ -91,7 +91,7 @@ func BuildArgs(o Options) ([]string, error) {
 	// off, a generated .gitconfig is bind-mounted read-only at $HOME inside
 	// the sandbox (ADR-0001: minimal copies user.name/user.email/
 	// init.defaultBranch; manual copies only git.keys; off generates none).
-	if o.GitMode != config.GitModeOff && o.Layout.HostGitConfig != "" && o.Layout.InsideGitConfig != "" {
+	if o.GitMode != config.GitModeOff && o.Layout.HostGitConfig != "" && o.Layout.InsideGitConfig != "" && fileExists(o.Layout.HostGitConfig) {
 		args = append(args, "--ro-bind", o.Layout.HostGitConfig, o.Layout.InsideGitConfig)
 	}
 

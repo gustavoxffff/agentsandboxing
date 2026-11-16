@@ -197,7 +197,33 @@ func TestBuildArgsGitConfigOff(t *testing.T) {
 }
 
 func TestBuildArgsGitConfigMinimal(t *testing.T) {
-	layout, args := buildWithGit(t, config.ProfileHost, config.GitModeMinimal, nil)
+	layout := testLayout(t)
+	// The generated .gitconfig must exist for it to be bind-mounted.
+	if err := os.MkdirAll(filepath.Dir(layout.HostGitConfig), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(layout.HostGitConfig, []byte("[user]\n\tname = Git User\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	args, err := BuildArgs(Options{
+		ProjectDir: t.TempDir(),
+		Profile:    config.ProfileHost,
+		Layout:     layout,
+		Env: []string{
+			"HOME=" + layout.Home,
+			"TMPDIR=/tmp",
+			"XDG_CONFIG_HOME=" + layout.InsideConfigHome,
+		},
+		EnvFile:    layout.InsideEnvFile,
+		Command:    []string{"true"},
+		SelfPath:   "/usr/bin/asb",
+		ResolvDest: "/etc/resolv.conf",
+		GitMode:    config.GitModeMinimal,
+		GitKeys:    nil,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !contains(args, layout.HostGitConfig) {
 		t.Fatalf("git mode minimal should bind-mount generated .gitconfig:\n%v", args)
 	}
@@ -214,6 +240,34 @@ func TestBuildArgsGitConfigMinimal(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("--ro-bind should precede %s:\n%v", layout.HostGitConfig, args)
+	}
+}
+
+func TestBuildArgsGitConfigMinimalMissingFile(t *testing.T) {
+	// When the generated .gitconfig does not exist (e.g. host has no .gitconfig
+	// or no keys matched), nothing is bind-mounted.
+	layout := testLayout(t)
+	args, err := BuildArgs(Options{
+		ProjectDir: t.TempDir(),
+		Profile:    config.ProfileHost,
+		Layout:     layout,
+		Env: []string{
+			"HOME=" + layout.Home,
+			"TMPDIR=/tmp",
+			"XDG_CONFIG_HOME=" + layout.InsideConfigHome,
+		},
+		EnvFile:    layout.InsideEnvFile,
+		Command:    []string{"true"},
+		SelfPath:   "/usr/bin/asb",
+		ResolvDest: "/etc/resolv.conf",
+		GitMode:    config.GitModeMinimal,
+		GitKeys:    nil,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if contains(args, layout.HostGitConfig) {
+		t.Fatalf("missing .gitconfig should not be bind-mounted:\n%v", args)
 	}
 }
 
