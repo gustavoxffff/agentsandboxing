@@ -21,6 +21,8 @@ type Options struct {
 	Command    []string // command and arguments; the path is resolved here
 	SelfPath   string   // asb binary, mounted read-only so `asb exec` can run
 	ResolvDest string   // real target of /etc/resolv.conf on the host
+	GitMode    config.GitMode
+	GitKeys    []string // only used with GitModeManual
 }
 
 // toolEnvNames is the complete set of variables the tool may pass through
@@ -49,6 +51,15 @@ func BuildArgs(o Options) ([]string, error) {
 	if o.SelfPath == "" {
 		return nil, fmt.Errorf("missing asb binary path")
 	}
+	if err := config.ValidateGitMode(o.GitMode); err != nil {
+		return nil, err
+	}
+	if o.GitMode != config.GitModeManual && len(o.GitKeys) > 0 {
+		return nil, fmt.Errorf("git.keys is only valid with git.mode = \"manual\" (current mode: %s)", o.GitMode)
+	}
+	if o.GitMode == config.GitModeManual && len(o.GitKeys) == 0 {
+		return nil, fmt.Errorf("git.mode = manual requires at least one git.keys entry")
+	}
 	project, err := filepath.Abs(o.ProjectDir)
 	if err != nil {
 		return nil, fmt.Errorf("resolve project: %w", err)
@@ -76,9 +87,12 @@ func BuildArgs(o Options) ([]string, error) {
 		"--bind", o.Layout.HostRoot, o.Layout.InsideRoot,
 	)
 
-	// Git without SSH: only .gitconfig, if it exists.
-	if gitconfig := filepath.Join(o.Layout.Home, ".gitconfig"); fileExists(gitconfig) {
-		args = append(args, "--ro-bind", gitconfig, gitconfig)
+	// Git config: never mount the host ~/.gitconfig. When git.mode is not
+	// off, a generated .gitconfig is bind-mounted read-only at $HOME inside
+	// the sandbox (ADR-0001: minimal copies user.name/user.email/
+	// init.defaultBranch; manual copies only git.keys; off generates none).
+	if o.GitMode != config.GitModeOff && o.Layout.HostGitConfig != "" && o.Layout.InsideGitConfig != "" {
+		args = append(args, "--ro-bind", o.Layout.HostGitConfig, o.Layout.InsideGitConfig)
 	}
 
 	commandPath, err := resolveCommand(o.Command[0])

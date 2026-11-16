@@ -20,6 +20,7 @@ func testLayout(t *testing.T) Layout {
 		HostRoot:         root,
 		HostOpencodeRoot: opencode,
 		HostEnvFile:      filepath.Join(root, ".asb-env"),
+		HostGitConfig:    filepath.Join(root, ".gitconfig"),
 		ProxyDir:         filepath.Join(home, "runtime"),
 		ProxySocket:      filepath.Join(home, "runtime", "proxy.sock"),
 		InsideRoot:       root,
@@ -32,10 +33,15 @@ func testLayout(t *testing.T) Layout {
 		InsideProxySock:  "/run/asb/proxy/proxy.sock",
 		InsideBinary:     "/run/asb/bin/asb",
 		InsideEnvFile:    filepath.Join(root, ".asb-env"),
+		InsideGitConfig:  filepath.Join(home, ".gitconfig"),
 	}
 }
 
 func build(t *testing.T, profile config.Profile, command ...string) (Layout, []string) {
+	return buildWithGit(t, profile, config.GitModeOff, nil, command...)
+}
+
+func buildWithGit(t *testing.T, profile config.Profile, mode config.GitMode, keys []string, command ...string) (Layout, []string) {
 	t.Helper()
 	layout := testLayout(t)
 	if command == nil {
@@ -54,6 +60,8 @@ func build(t *testing.T, profile config.Profile, command ...string) (Layout, []s
 		Command:    command,
 		SelfPath:   "/usr/bin/asb",
 		ResolvDest: "/etc/resolv.conf",
+		GitMode:    mode,
+		GitKeys:    keys,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -177,6 +185,62 @@ func TestBuildArgsNeverMountsGlobalOpencodeState(t *testing.T) {
 		if strings.Contains(joined, path) {
 			t.Fatalf("global state mounted: %s\n%s", path, joined)
 		}
+	}
+}
+
+func TestBuildArgsGitConfigOff(t *testing.T) {
+	_, args := buildWithGit(t, config.ProfileHost, config.GitModeOff, nil)
+	joined := strings.Join(args, "\n")
+	if strings.Contains(joined, ".gitconfig") {
+		t.Fatalf("git mode off should not mount .gitconfig:\n%s", joined)
+	}
+}
+
+func TestBuildArgsGitConfigMinimal(t *testing.T) {
+	layout, args := buildWithGit(t, config.ProfileHost, config.GitModeMinimal, nil)
+	if !contains(args, layout.HostGitConfig) {
+		t.Fatalf("git mode minimal should bind-mount generated .gitconfig:\n%v", args)
+	}
+	if !contains(args, layout.InsideGitConfig) {
+		t.Fatalf("git mode minimal should mount at $HOME/.gitconfig:\n%v", args)
+	}
+	// --ro-bind must immediately precede the source path.
+	found := false
+	for i := 0; i+1 < len(args); i++ {
+		if args[i] == "--ro-bind" && args[i+1] == layout.HostGitConfig {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("--ro-bind should precede %s:\n%v", layout.HostGitConfig, args)
+	}
+}
+
+func TestBuildArgsGitConfigManual(t *testing.T) {
+	_, args := buildWithGit(t, config.ProfileHost, config.GitModeManual, []string{"user.name"})
+	joined := strings.Join(args, "\n")
+	if !strings.Contains(joined, "--ro-bind") && !strings.Contains(joined, ".gitconfig") {
+		t.Fatalf("git mode manual should bind-mount generated .gitconfig:\n%s", joined)
+	}
+}
+
+func TestBuildArgsRejectsGitKeysWithoutManual(t *testing.T) {
+	layout := testLayout(t)
+	_, err := BuildArgs(Options{
+		ProjectDir: t.TempDir(),
+		Profile:    config.ProfileHost,
+		Layout:     layout,
+		Env:        []string{"HOME=" + layout.Home},
+		EnvFile:    layout.InsideEnvFile,
+		Command:    []string{"true"},
+		SelfPath:   "/usr/bin/asb",
+		ResolvDest: "/etc/resolv.conf",
+		GitMode:    config.GitModeMinimal,
+		GitKeys:    []string{"user.name"},
+	})
+	if err == nil {
+		t.Fatal("git.keys with non-manual mode should be rejected")
 	}
 }
 

@@ -1,6 +1,6 @@
 # ADR-0007: Mutation and regression tests are mandatory
 
-- **Status:** Proposed (in RFC)
+- **Status:** Accepted
 - **Date:** 2026-11-01
 - **Deciders:** Gustavo
 - **RFC:** [RFC-0002](../rfc/0002-engineering-process-baseline.md)
@@ -46,3 +46,4 @@ Gremlins v0.6.0 is the current stable Go mutation-testing tool. It supports `--d
 |---|---|---|
 | 2026-11-01 | Initial draft | Testing rule requested |
 | 2026-11-01 | Grill: Gremlins v0.6.0 pinned; diff per PR + weekly full; initial 70/60 with 80 mcover target; red run + test-file hash; cmd/asb included | Baseline measured locally; tool capabilities verified |
+| 2026-11-16 | Status → Accepted; linked to RFC-0002 which is Accepted | RFC-0002 feedback deadline of 2026-11-15 passed with no blocking question; ADR accepted and frozen |

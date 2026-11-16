@@ -1,6 +1,6 @@
 # RFC-0002: Engineering process baseline: RFC/ADR lifecycle, English-only artifacts, and mandatory mutation/regression tests
 
-- **Status:** In review
+- **Status:** Accepted
 - **Author(s):** Gustavo
 - **Reviewers:** Gustavo (self-review); [FILL: external reviewer, if any]
 - **Date:** 2026-11-01 (creation); 2026-11-09 (status to `In review`)
@@ -326,3 +326,4 @@ This RFC is accepted when all of the following are true:
 | 2026-11-09 | Status `Draft` → `In review`; open questions 2, 7, and 9 resolved; acceptance criteria re-checked with evidence | The 2026-11-15 feedback deadline is active; Q2 was overdue; Q7 and Q9 were due at acceptance |
 | 2026-11-09 | `scripts/check-docs.sh` now validates `Supersedes` presence and the supersession back-reference; red/green runs recorded in §13 | ADR-0009 requires the docs check to validate `Supersedes`; pre-acceptance verification found the implementation gap |
 | 2026-11-09 | Acceptance criterion 7 ticked; demo PR #2 carries the red run and the test-file SHA-256 | Criterion 7 requires a demo PR; the PR is the evidence |
+| 2026-11-16 | Status → Accepted; feedback deadline of 2026-11-15 passed with no blocking open question remaining | Accepted per Phase 5 deadline closure |

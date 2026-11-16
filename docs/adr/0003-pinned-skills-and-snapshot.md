@@ -1,6 +1,6 @@
 # ADR-0003: Pinned skills with a host store and a read-only snapshot
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-29
 - **Deciders:** Gustavo
 - **RFC:** [RFC-0001](../rfc/0001-configurable-sandbox-for-agents.md)
@@ -123,3 +123,4 @@ These directories are **not** mounted directly in the sandbox; the tool generate
 |---|---|---|
 | 2026-10-29 | Extracted from the original ADR-0001 | Split into 4 ADRs; ADR-0001 keeps v1 (Go + network) |
 | 2026-10-29 | Paths renamed to `asb`, consistent with ADR-0001 | RFC pending-item closure |
+| 2026-11-16 | Status → Accepted; linked to RFC-0001 which is Accepted | RFC-0001 feedback deadline of 2026-11-15 passed with no blocking question; ADR accepted and frozen |

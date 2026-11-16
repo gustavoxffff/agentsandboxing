@@ -91,6 +91,26 @@ func Execute(o Options) (int, error) {
 		return 1, err
 	}
 
+	// Generate the sandbox .gitconfig from the host file, based on [git] mode.
+	// The file is written to the host state dir and bind-mounted read-only
+	// inside the sandbox (ADR-0001: host ~/.gitconfig is never mounted).
+	if cfg.GitMode != config.GitModeOff {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return 1, fmt.Errorf("discover HOME: %w", err)
+		}
+		content, err := config.GitConfigContent(home, cfg.GitMode, cfg.GitKeys)
+		if err != nil {
+			return 1, err
+		}
+		if content != "" {
+			if err := os.WriteFile(layout.HostGitConfig, []byte(content), 0o600); err != nil {
+				return 1, fmt.Errorf("write sandbox .gitconfig: %w", err)
+			}
+			defer os.Remove(layout.HostGitConfig)
+		}
+	}
+
 	env, err := buildSandboxEnv(cfg, o.LookupEnv)
 	if err != nil {
 		return 1, err
@@ -138,6 +158,8 @@ func Execute(o Options) (int, error) {
 		Command:    command,
 		SelfPath:   selfPath,
 		ResolvDest: sandbox.ResolvDestination(),
+		GitMode:    cfg.GitMode,
+		GitKeys:    cfg.GitKeys,
 	})
 	if err != nil {
 		return 1, err

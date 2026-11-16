@@ -1,6 +1,6 @@
 # ADR-0005: Separate RFCs from ADRs and freeze accepted decisions
 
-- **Status:** Proposed (in RFC)
+- **Status:** Accepted
 - **Date:** 2026-11-01
 - **Deciders:** Gustavo
 - **RFC:** [RFC-0002](../rfc/0002-engineering-process-baseline.md)
@@ -53,3 +53,4 @@ The retrofit is intentionally light: ADR-0002..0004 get a link to RFC-0001 as th
 |---|---|---|
 | 2026-11-01 | Initial draft | Workflow change requested; no existing process ADR |
 | 2026-11-01 | Grill: every ADR requires an RFC; semantic freeze; no partial acceptance; light retrofit; templates + checklist + light CI; size guideline ~100 lines | Answers from the grill |
+| 2026-11-16 | Status → Accepted; linked to RFC-0002 which is Accepted | RFC-0002 feedback deadline of 2026-11-15 passed with no blocking question; ADR accepted and frozen |

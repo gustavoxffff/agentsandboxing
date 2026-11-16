@@ -235,6 +235,94 @@ func TestValidateSandboxID(t *testing.T) {
 	}
 }
 
+func TestGitConfigContent(t *testing.T) {
+	home := t.TempDir()
+	hostGitConfig := filepath.Join(home, ".gitconfig")
+	writeMode(t, hostGitConfig, `
+[user]
+	name = Git User
+	email = git@example.com
+[init]
+	defaultBranch = main
+[credential]
+	helper = cache
+[core]
+	editor = vim
+`, 0o600)
+
+	// Minimal mode: only the three identity keys.
+	content, err := GitConfigContent(home, GitModeMinimal, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(content, "[user]\nname = Git User") {
+		t.Fatalf("minimal mode missing user.name:\n%s", content)
+	}
+	if !strings.Contains(content, "email = git@example.com") {
+		t.Fatalf("minimal mode missing user.email:\n%s", content)
+	}
+	if !strings.Contains(content, "[init]\ndefaultBranch = main") {
+		t.Fatalf("minimal mode missing init.defaultBranch:\n%s", content)
+	}
+	if strings.Contains(content, "credential.helper") || strings.Contains(content, "core.editor") {
+		t.Fatalf("minimal mode included non-identity keys:\n%s", content)
+	}
+
+	// Manual mode: only listed keys.
+	content, err = GitConfigContent(home, GitModeManual, []string{"user.name"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(content, "[user]\nname = Git User") {
+		t.Fatalf("manual mode missing user.name:\n%s", content)
+	}
+	if strings.Contains(content, "user.email") || strings.Contains(content, "init.defaultBranch") {
+		t.Fatalf("manual mode included unlisted keys:\n%s", content)
+	}
+
+	// Off mode: no content.
+	content, err = GitConfigContent(home, GitModeOff, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if content != "" {
+		t.Fatalf("off mode should produce no content:\n%s", content)
+	}
+
+	// Missing host .gitconfig is not an error.
+	content, err = GitConfigContent(filepath.Join(t.TempDir(), "nonexistent"), GitModeMinimal, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if content != "" {
+		t.Fatalf("missing host .gitconfig should produce no content:\n%s", content)
+	}
+}
+
+func TestGitModeValidation(t *testing.T) {
+	for _, m := range []GitMode{GitModeMinimal, GitModeManual, GitModeOff} {
+		if err := ValidateGitMode(m); err != nil {
+			t.Fatalf("%q: %v", m, err)
+		}
+	}
+	if err := ValidateGitMode("bogus"); err == nil {
+		t.Fatal("invalid git mode accepted")
+	}
+}
+
+func TestNormalizeGitKey(t *testing.T) {
+	for _, k := range []string{"user.name", "user.email", "init.defaultBranch", "core.editor"} {
+		if _, err := NormalizeGitKey(k); err != nil {
+			t.Fatalf("%q: %v", k, err)
+		}
+	}
+	for _, k := range []string{"", " ", "username", "user.name extra", "[user].name", "user..name"} {
+		if _, err := NormalizeGitKey(k); err == nil {
+			t.Fatalf("%q should fail", k)
+		}
+	}
+}
+
 func write(t *testing.T, path, content string) {
 	t.Helper()
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {

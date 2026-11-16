@@ -1,6 +1,6 @@
 # ADR-0001: Go CLI for an agent sandbox with network policy and routing
 
-- **Status:** Proposed (in RFC)
+- **Status:** Accepted
 - **RFC:** [RFC-0001](../rfc/0001-configurable-sandbox-for-agents.md)
 - **Date:** 2026-10-27 (creation); 2026-10-29 (rescope, grill, and closure of pending items); 2026-11-01 (grill revision)
 - **Deciders:** Gustavo
@@ -216,3 +216,4 @@ v1 is considered ready when:
 | 2026-11-01 | Grill revision: wrapper/legacy removed; env secrets by fd/file; `[git]` `minimal`/`manual`; expanded `allowlist` gate; dogfood after the gate; socket, startup, and preflight corrections | ADR-0001 and RFC-0001 revision with code evidence (tests, smoke, and `/proc/<pid>/cmdline`) |
 | 2026-11-09 | Open question 6 marked implemented: `asb exec` + env-file delivery (PR #3, `2adde64`); no semantic change to the decision | RFC-0001 §11 drift row 2 fixed with a red/green argv regression test and mutation evidence |
 | 2026-11-09 | Questions 7 and 13 closed: the expanded matrix is automated in `scripts/matrix.sh`; CI pins Node v24.22.2, `@opencode/cli@2.1.4`, and `slirp4netns` 1.2.1; no semantic change to the decision | Phase 6 `allowlist` gate work; RFC-0001 §5.3 updated |
+| 2026-11-16 | Status → Accepted; linked to RFC-0001 which is Accepted | RFC-0001 feedback deadline of 2026-11-15 passed with no blocking question; ADR accepted and frozen |

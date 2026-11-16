@@ -28,6 +28,18 @@ const (
 	ProfileAllowlist Profile = "allowlist"
 )
 
+// GitMode is the v1 git configuration mode.
+type GitMode string
+
+const (
+	GitModeMinimal GitMode = "minimal" // copy only user.name, user.email, init.defaultBranch from host
+	GitModeManual  GitMode = "manual"  // copy only the keys listed in git.keys
+	GitModeOff     GitMode = "off"     // generate no .gitconfig
+)
+
+// minimalGitKeys are the keys copied in minimal mode.
+var minimalGitKeys = []string{"user.name", "user.email", "init.defaultBranch"}
+
 // BaseEnvAllow is the closed base allowlist of v1 (RFC-0001 §5.4). HOME and
 // the proxy variables are set by the tool, not inherited.
 var BaseEnvAllow = []string{
@@ -62,6 +74,8 @@ type Layer struct {
 	NetworkAllow *[]string
 	EnvAllow     *[]string
 	EnvFromFile  *string
+	GitMode      *GitMode
+	GitKeys      *[]string
 }
 
 // Overrides are the CLI flags. Nil means "not set".
@@ -83,12 +97,15 @@ type Resolved struct {
 	EnvFromFile  string
 	FromFileVars map[string]string
 	SandboxID    string
+	GitMode      GitMode
+	GitKeys      []string
 }
 
 type rawFile struct {
 	Version int        `toml:"version"`
 	Network rawNetwork `toml:"network"`
 	Env     rawEnv     `toml:"env"`
+	Git     rawGit     `toml:"git"`
 }
 
 type rawNetwork struct {
@@ -99,6 +116,11 @@ type rawNetwork struct {
 type rawEnv struct {
 	Allow    []string `toml:"allow"`
 	FromFile string   `toml:"from_file"`
+}
+
+type rawGit struct {
+	Mode string   `toml:"mode"`
+	Keys []string `toml:"keys"`
 }
 
 // LoadFile loads a layer. Returns os.ErrNotExist if the file does not exist.
@@ -153,6 +175,21 @@ func LoadFile(path string) (*Layer, error) {
 			return nil, fmt.Errorf("%s: env.from_file cannot be empty", path)
 		}
 		layer.EnvFromFile = &f
+	}
+	if md.IsDefined("git", "mode") {
+		m := strings.TrimSpace(raw.Git.Mode)
+		if m == "" {
+			return nil, fmt.Errorf("%s: git.mode cannot be empty", path)
+		}
+		mode := GitMode(m)
+		if err := ValidateGitMode(mode); err != nil {
+			return nil, err
+		}
+		layer.GitMode = &mode
+	}
+	if md.IsDefined("git", "keys") {
+		list := copyList(raw.Git.Keys)
+		layer.GitKeys = &list
 	}
 	return layer, nil
 }
@@ -232,6 +269,28 @@ func Resolve(projectDir string, cli Overrides) (Resolved, error) {
 		res.EnvAllow = append([]string(nil), BaseEnvAllow...)
 	}
 
+	// Default git mode is minimal: copy only the essential identity keys.
+	if res.GitMode == "" {
+		res.GitMode = GitModeMinimal
+	}
+	if err := ValidateGitMode(res.GitMode); err != nil {
+		return res, err
+	}
+	if res.GitMode != GitModeManual && len(res.GitKeys) > 0 {
+		return res, fmt.Errorf("git.keys is only valid with git.mode = \"manual\" (current mode: %s)", res.GitMode)
+	}
+	if res.GitMode == GitModeManual {
+		normalized := make([]string, 0, len(res.GitKeys))
+		for _, k := range res.GitKeys {
+			nk, err := NormalizeGitKey(k)
+			if err != nil {
+				return res, err
+			}
+			normalized = append(normalized, nk)
+		}
+		res.GitKeys = normalized
+	}
+
 	if err := validateProfile(res.Profile); err != nil {
 		return res, err
 	}
@@ -273,6 +332,12 @@ func applyLayer(res *Resolved, layer *Layer) {
 	}
 	if layer.EnvFromFile != nil {
 		res.EnvFromFile = *layer.EnvFromFile
+	}
+	if layer.GitMode != nil {
+		res.GitMode = *layer.GitMode
+	}
+	if layer.GitKeys != nil {
+		res.GitKeys = copyList(*layer.GitKeys)
 	}
 }
 
@@ -494,6 +559,40 @@ func requireGitIgnored(projectDir, rel string) error {
 }
 
 // ValidateSandboxID prevents path traversal and ambiguous names.
+// ValidateGitMode validates a git mode.
+func ValidateGitMode(m GitMode) error {
+	switch m {
+	case GitModeMinimal, GitModeManual, GitModeOff:
+		return nil
+	default:
+		return fmt.Errorf("invalid git.mode: %q (use minimal, manual or off)", m)
+	}
+}
+
+// NormalizeGitKey validates and normalizes a git config key (e.g. user.name).
+func NormalizeGitKey(key string) (string, error) {
+	k := strings.TrimSpace(key)
+	if k == "" {
+		return "", errors.New("git.keys: empty entry")
+	}
+	if strings.ContainsAny(k, " \t\n\r[") {
+		return "", fmt.Errorf("git.keys: invalid key %q (use only section.key)", k)
+	}
+	if strings.Count(k, ".") != 1 {
+		return "", fmt.Errorf("git.keys: invalid key %q (use section.key, e.g. user.name)", k)
+	}
+	parts := strings.SplitN(k, ".", 2)
+	if parts[0] == "" || parts[1] == "" {
+		return "", fmt.Errorf("git.keys: invalid key %q (use section.key, e.g. user.name)", k)
+	}
+	for _, r := range parts[0] {
+		if (r < 'a' || r > 'z') && (r < '0' || r > '9') && r != '-' {
+			return "", fmt.Errorf("git.keys: invalid section %q in %q", parts[0], k)
+		}
+	}
+	return k, nil
+}
+
 func ValidateSandboxID(id string) error {
 	if id == "" {
 		return errors.New("empty sandbox id")
@@ -510,4 +609,73 @@ func ValidateSandboxID(id string) error {
 		}
 	}
 	return nil
+}
+
+// GitConfigContent generates the .gitconfig file content for the sandbox.
+// It reads the host ~/.gitconfig and extracts only the keys allowed by mode:
+// minimal copies user.name, user.email, init.defaultBranch; manual copies
+// only the listed keys; off returns empty content (no file).
+func GitConfigContent(hostHome string, mode GitMode, keys []string) (string, error) {
+	if mode == GitModeOff {
+		return "", nil
+	}
+	want := map[string]bool{}
+	switch mode {
+	case GitModeMinimal:
+		for _, k := range minimalGitKeys {
+			want[k] = true
+		}
+	case GitModeManual:
+		for _, k := range keys {
+			want[k] = true
+		}
+	}
+	hostGitConfig := filepath.Join(hostHome, ".gitconfig")
+	data, err := os.ReadFile(hostGitConfig)
+	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			return "", nil
+		}
+		return "", fmt.Errorf("read host .gitconfig: %w", err)
+	}
+	// Collect matching key-value pairs grouped by section.
+	type kv struct{ section, name, value string }
+	var matched []kv
+	currentSection := ""
+	for _, line := range strings.Split(string(data), "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") || strings.HasPrefix(trimmed, ";") {
+			continue
+		}
+		if strings.HasPrefix(trimmed, "[") && strings.HasSuffix(trimmed, "]") {
+			currentSection = strings.TrimSuffix(strings.TrimPrefix(trimmed, "["), "]")
+			continue
+		}
+		name, value, ok := strings.Cut(trimmed, "=")
+		if !ok {
+			continue
+		}
+		name = strings.TrimSpace(name)
+		value = strings.TrimSpace(value)
+		key := currentSection + "." + name
+		if want[key] {
+			matched = append(matched, kv{currentSection, name, value})
+		}
+	}
+	if len(matched) == 0 {
+		return "", nil
+	}
+	var out strings.Builder
+	lastSection := ""
+	for _, m := range matched {
+		if m.section != lastSection {
+			if lastSection != "" {
+				out.WriteString("\n")
+			}
+			fmt.Fprintf(&out, "[%s]\n", m.section)
+			lastSection = m.section
+		}
+		fmt.Fprintf(&out, "%s = %s\n", m.name, m.value)
+	}
+	return out.String(), nil
 }

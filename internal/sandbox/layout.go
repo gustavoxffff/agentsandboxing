@@ -26,6 +26,7 @@ type Layout struct {
 	HostRoot         string
 	HostOpencodeRoot string
 	HostEnvFile      string
+	HostGitConfig    string // generated .gitconfig, bind-mounted read-only into the sandbox
 	ProxyDir         string
 	ProxySocket      string
 
@@ -40,6 +41,7 @@ type Layout struct {
 	InsideProxySock  string
 	InsideBinary     string
 	InsideEnvFile    string
+	InsideGitConfig  string // $HOME/.gitconfig inside the sandbox
 }
 
 // NewLayout computes the layout. An empty sandboxID uses the id derived from
@@ -66,10 +68,12 @@ func NewLayout(projectDir, sandboxID string) (Layout, error) {
 	hostRoot := filepath.Join(stateHome, "asb", "sandboxes", id)
 	hostOpencode := filepath.Join(hostRoot, "opencode")
 	hostEnvFile := filepath.Join(hostRoot, ".asb-env")
+	hostGitConfig := filepath.Join(hostRoot, ".gitconfig")
 
 	insideRoot := filepath.Join(home, ".local", "state", "asb", "sandboxes", id)
 	insideOpencode := filepath.Join(insideRoot, "opencode")
 	insideEnvFile := filepath.Join(insideRoot, ".asb-env")
+	insideGitConfig := filepath.Join(home, ".gitconfig")
 
 	runtimeBase := os.Getenv("XDG_RUNTIME_DIR")
 	if runtimeBase == "" {
@@ -92,6 +96,7 @@ func NewLayout(projectDir, sandboxID string) (Layout, error) {
 		HostRoot:         hostRoot,
 		HostOpencodeRoot: hostOpencode,
 		HostEnvFile:      hostEnvFile,
+		HostGitConfig:    hostGitConfig,
 		ProxyDir:         proxyDir,
 		ProxySocket:      proxySocket,
 		InsideRoot:       insideRoot,
@@ -104,6 +109,7 @@ func NewLayout(projectDir, sandboxID string) (Layout, error) {
 		InsideProxySock:  "/run/asb/proxy/proxy.sock",
 		InsideBinary:     "/run/asb/bin/asb",
 		InsideEnvFile:    insideEnvFile,
+		InsideGitConfig:  insideGitConfig,
 	}, nil
 }
 
