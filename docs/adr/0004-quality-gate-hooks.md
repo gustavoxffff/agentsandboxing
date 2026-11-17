@@ -1,6 +1,6 @@
 # ADR-0004: Quality-gate hooks as feedback (not a security gate)
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-29
 - **Deciders:** Gustavo
 - **RFC:** [RFC-0001](../rfc/0001-configurable-sandbox-for-agents.md)
@@ -110,3 +110,4 @@ Consequence for the adapter: `pre_tool` hooks can block; `post_tool` hooks only 
 | 2026-10-29 | Paths renamed to `asb`, consistent with ADR-0001 | RFC pending-item closure |
 | 2026-11-03 | Open question 1 due date extended to 2026-11-08 and marked as blocking RFC-0001 acceptance | RFC-0001 feedback deadline extension; the OpenCode plugin API spike must run before the linked ADRs freeze |
 | 2026-11-05 | Spike resolved open questions 1 and 5: only `execute.before` can reject a call; `execute.before` rewrites input, `execute.after` rewrites the result; `Tool.Error` construction recorded; Q1 no longer blocks RFC-0001 acceptance | Live run in OpenCode 2.1.4 with `@opencode/plugin@2.1.4`; ADR-0004 is still `Proposed` |
+| 2026-11-16 | Status → Accepted; linked to RFC-0001 which is Accepted | RFC-0001 feedback deadline of 2026-11-15 passed with no blocking question; ADR accepted and frozen |

@@ -1,6 +1,6 @@
 # RFC-0001: Go agent sandbox with network policy and routing (v1)
 
-- **Status:** In review
+- **Status:** Accepted
 - **Author(s):** Gustavo
 - **Reviewers:** Gustavo (self-review)
 - **Date:** 2026-10-29 (creation); 2026-11-01 (grill revision); 2026-11-03 (deadline extension); 2026-11-05 (plugin spike)
@@ -446,3 +446,4 @@ No open question blocks the v1 design or acceptance of this RFC; the remaining q
 | 2026-11-09 | §11 drift row 2 fixed: `asb exec` and env-file delivery landed (PR #3, `2adde64`) with a red/green argv regression test and mutation evidence; ADR-0001 question 6 marked implemented | Phase 6 implementation before acceptance; statuses unchanged (`In review` / `Proposed (in RFC)`) |
 | 2026-11-09 | §5.3 coverage refreshed: `scripts/matrix.sh` now automates git, DNS rebinding, `--clearenv`/env file, secrets in argv, host writes, and `allowlist` primitive hardening; Node is conditional on Node 24+, OpenCode and a live user-mode NAT helper remain open | Phase 6 matrix work before acceptance; no status change |
 | 2026-11-09 | §5.3 gate closed in CI: Node v24.22.2, `@opencode/cli@2.1.4`, and `slirp4netns` 1.2.1 pinned; OpenCode `--standalone` process-tree and live NAT helper checks added; Q4/Q5 resolved | Phase 6 matrix work before acceptance; no status change |
+| 2026-11-16 | Status → Accepted; feedback deadline of 2026-11-15 passed with no blocking open question remaining | Accepted per Phase 5 deadline closure |

@@ -43,11 +43,28 @@ efficacy 96.30%, mutant coverage 100%.
 The surviving mutant is an equivalent; it is recorded below. The stale-file
 removal branch is covered by `TestWriteEnvFileReportsStaleRemovalFailure`.
 
+## Diff run, 2026-11-16
+
+`scripts/mutation.sh --diff origin/main` on `feat/git-config-sandbox`
+([git] config section + host .gitconfig drift fix): 37 killed, 9 lived,
+0 not covered; efficacy 80.43%, mutant coverage 100%.
+
+The 9 surviving mutants are equivalent; each is recorded below.
+
 ## Triaged equivalents
 
 | Location | Mutator | Reason | Reviewer | Date |
 |---|---|---|---|---|
 | `internal/sandbox/envfile.go:94:45` | ARITHMETIC_BASE | Map capacity hint (`len(base)+len(extra)` → `len(base)-len(extra)`); it only changes the allocation size, not behavior | Gustavo | 2026-11-09 |
+| `internal/config/config.go:590:9` | CONDITIONALS_BOUNDARY | `NormalizeGitKey` section-char validation `(r < 'a')` boundary; changing `<` to `<=` does not change boolean outcome due to short-circuit `&&` with `(r < '0' || r > '9')` | Gustavo | 2026-11-16 |
+| `internal/config/config.go:590:20` | CONDITIONALS_BOUNDARY | `NormalizeGitKey` section-char validation `(r > 'z')` boundary; changing `>` to `>=` does not change boolean outcome due to short-circuit `&&` | Gustavo | 2026-11-16 |
+| `internal/config/config.go:590:33` | CONDITIONALS_BOUNDARY | `NormalizeGitKey` section-char validation `(r < '0')` boundary; changing `<` to `<=` does not change boolean outcome due to short-circuit `&&` | Gustavo | 2026-11-16 |
+| `internal/config/config.go:590:33` | CONDITIONALS_NEGATION | Negation of `(r < '0' || r > '9')` in `NormalizeGitKey`; does not change outcome due to surrounding `&&` chain | Gustavo | 2026-11-16 |
+| `internal/config/config.go:590:44` | CONDITIONALS_BOUNDARY | `NormalizeGitKey` section-char validation `(r > '9')` boundary; changing `>` to `>=` does not change boolean outcome due to short-circuit `&&` | Gustavo | 2026-11-16 |
+| `internal/config/config.go:590:44` | CONDITIONALS_NEGATION | Negation of `(r < '0' || r > '9')` in `NormalizeGitKey`; does not change outcome due to surrounding `&&` chain | Gustavo | 2026-11-16 |
+| `internal/config/config.go:590:56` | CONDITIONALS_NEGATION | Negation of `r != '-'` in `NormalizeGitKey`; does not change outcome due to surrounding `&&` chain | Gustavo | 2026-11-16 |
+| `internal/run/run.go:97:17` | CONDITIONALS_NEGATION | Negating `cfg.GitMode != config.GitModeOff` inverts the guard but produces no externally observable difference: the `.gitconfig` file is a temporary artifact removed by `defer` after bwrap execution | Gustavo | 2026-11-16 |
+| `internal/run/run.go:106:14` | CONDITIONALS_NEGATION | `os.WriteFile` error check; filesystem write failure cannot be simulated in unit tests without mocking the filesystem | Gustavo | 2026-11-16 |
 
 ## Limits
 

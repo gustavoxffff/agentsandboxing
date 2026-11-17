@@ -1,6 +1,6 @@
 # ADR-0006: English is the only language for documentation, code, and CLI
 
-- **Status:** Proposed (in RFC)
+- **Status:** Accepted
 - **Date:** 2026-11-01
 - **Deciders:** Gustavo
 - **RFC:** [RFC-0002](../rfc/0002-engineering-process-baseline.md)
@@ -47,3 +47,4 @@ This splits vocabulary between the repository and the Go/OpenCode ecosystem, add
 | 2026-11-01 | Initial draft | Language rule requested |
 | 2026-11-01 | Grill: English for all new artifacts including commits/PRs/issues; dedicated translation PR before RFC-0001 acceptance; rename files; review + CLI tests, no language linter | Answers from the grill |
 | 2026-11-02 | Translation migration executed: docs, CLI strings, tests, scripts, CI, and file slugs are English; the legacy metadata exemption was removed from `scripts/check-docs.sh` | Dedicated migration change for this ADR |
+| 2026-11-16 | Status → Accepted; linked to RFC-0002 which is Accepted | RFC-0002 feedback deadline of 2026-11-15 passed with no blocking question; ADR accepted and frozen |

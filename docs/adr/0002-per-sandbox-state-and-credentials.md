@@ -1,6 +1,6 @@
 # ADR-0002: Credentials and lifecycle of OpenCode state per sandbox
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-29
 - **Deciders:** Gustavo
 - **RFC:** [RFC-0001](../rfc/0001-configurable-sandbox-for-agents.md)
@@ -99,13 +99,25 @@ With the goal of containing accidental damage and prompt injection, letting the 
 
 | # | Question | Owner | Blocks? | Due |
 |---|---|---|---|---|
-| 1 | When to clean the sandbox directory and how long to retain it | Gustavo | No | dogfood review |
-| 2 | Rotation/cleanup of the persistent directory and size limit | Gustavo | No | 2026-11-10 |
-| 3 | Does `auth export` export all credentials, or can it filter by provider | Gustavo | No | 2026-11-10 |
-| 4 | Secret sources beyond the `from_file` file (keyring) and file format | Gustavo | No | when grilling this ADR |
-| 5 | Multiple accounts/providers in the same sandbox | Gustavo | No | 2026-11-10 |
-| 6 | Interaction with the host `opencode service` | Gustavo | No | 2026-11-10 |
-| 7 | XDG paths on WSL | Gustavo | No | 2026-11-10 |
+| 1 | When to clean the sandbox directory and how long to retain it | Gustavo | No; resolved 2026-11-10 | Done 2026-11-10 |
+| 2 | Rotation/cleanup of the persistent directory and size limit | Gustavo | No; resolved 2026-11-10 | Done 2026-11-10 |
+| 3 | Does `auth export` export all credentials, or can it filter by provider | Gustavo | No; resolved 2026-11-10 | Done 2026-11-10 |
+| 4 | Secret sources beyond the `from_file` file (keyring) and file format | Gustavo | No; resolved 2026-11-14 | Done 2026-11-14 |
+| 5 | Multiple accounts/providers in the same sandbox | Gustavo | No; resolved 2026-11-14 | Done 2026-11-14 |
+| 6 | Interaction with the host `opencode service` | Gustavo | No; resolved 2026-11-14 | Done 2026-11-14 |
+| 7 | XDG paths on WSL | Gustavo | No; resolved 2026-11-16 | Done 2026-11-16 |
+
+## Resolved on 2026-11-10
+
+| # | Question | Resolution | Evidence |
+|---|---|---|---|
+| 1 | When to clean the sandbox directory and how long to retain it | No automatic cleanup in v1. Persistent state is kept until the user deletes it; `--ephemeral` discards state at end of session (tmpfs). Rotation/cleanup policy is deferred to dogfood review. | Decider confirmation (2026-11-10) |
+| 2 | Rotation/cleanup of the persistent directory and size limit | No automatic rotation or size limit in v1. The directory grows until the user deletes it; rotation/cleanup is deferred to a future ADR and documented as future work. | Decider confirmation (2026-11-10) |
+| 3 | Does `auth export` export all credentials, or can it filter by provider | Deferred to future ADRs: `auth export`/`auth import` is out of v1 scope. Credentials in v1 enter only through the env allowlist. The question does not apply to v1. | Decider decision (2026-11-10) |
+| 4 | Secret sources beyond the `from_file` file (keyring) and file format | Out of scope for v1: `from_file` is the only secret source in v1. Keyring and alternate file formats are deferred to future ADRs (ADR-0001 §5.4 fixes this: secrets enter only through `[env] allow` or `from_file`). | Decider confirmation (2026-11-14) |
+| 5 | Multiple accounts/providers in the same sandbox | One provider per sandbox in v1; multiple accounts handled via multiple sandboxes. Multi-provider/multi-account within a single sandbox is deferred to a future ADR. | Decider confirmation (2026-11-14) |
+| 6 | Interaction with the host `opencode service` | No interaction — the host service is never contacted. ADR-0002 mandates `--standalone` (OpenCode server runs inside `bwrap`); ADR-0001 Confirmation requires the server to be a child of `bwrap`, never the shared host service. | Decider confirmation (2026-11-14) |
+| 7 | XDG paths on WSL | Follow the host WSL `XDG_STATE_HOME` mapping; no special WSL handling in v1 code. WSL remains non-blocking and manual (RFC-0001 §9: no automated runner, manual checklist and tracking issue). | Decider confirmation (2026-11-16) |
 
 ## Revisions
 
@@ -114,3 +126,11 @@ With the goal of containing accidental damage and prompt injection, letting the 
 | 2026-10-29 | Extracted from the original ADR-0001 | Split into 4 ADRs; ADR-0001 keeps v1 (Go + network) |
 | 2026-10-29 | XDG/`--clearenv`/`--standalone` absorbed by v1 (ADR-0001); this ADR keeps `auth export/import`, ephemeral, rotation, cleanup, and multiple accounts | Grill decision (Q3) |
 | 2026-10-29 | Paths renamed to `asb`; `<id>` defined in ADR-0001; env allowlist closed in the RFC | Pending-item closure |
+| 2026-11-10 | Resolved open question 1: no automatic sandbox cleanup in v1; persistent state kept until user deletes it, `--ephemeral` discards at end of session | Decider confirmation |
+| 2026-11-10 | Resolved open question 2: no automatic rotation or size limit in v1; directory grows until user deletes it; rotation/cleanup deferred to a future ADR | Decider confirmation |
+| 2026-11-10 | Resolved open question 3: `auth export`/`auth import` deferred to future ADRs; v1 credentials enter only through the env allowlist | Decider decision |
+| 2026-11-14 | Resolved open question 4: out of scope for v1; `from_file` is the only secret source | Decider confirmation |
+| 2026-11-14 | Resolved open question 5: one provider per sandbox in v1; multiple accounts via multiple sandboxes | Decider confirmation |
+| 2026-11-14 | Resolved open question 6: no interaction with the host `opencode service`; `--standalone` keeps the server inside `bwrap` | Decider confirmation |
+| 2026-11-16 | Resolved open question 7: XDG paths follow the host WSL `XDG_STATE_HOME` mapping; WSL remains manual and non-blocking | Decider confirmation |
+| 2026-11-16 | Status → Accepted; linked to RFC-0001 which is Accepted | RFC-0001 feedback deadline of 2026-11-15 passed with no blocking question; ADR accepted and frozen |
