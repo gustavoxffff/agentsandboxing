@@ -31,7 +31,7 @@ If the test file changed after the red run, repeat the red run.
 - `LIVED` triage:
 - Report path:
 
-For docs-only or CI-only changes, record why mutation testing was skipped.
+Mutation testing runs on every PR. If the diff changes only comments/docs and no executable Go logic, record that no mutants were generated.
 
 ## Docs and links
 
@@ -46,3 +46,7 @@ For docs-only or CI-only changes, record why mutation testing was skipped.
 - [ ] Every task maps to a spec acceptance criterion.
 - [ ] No secret is printed, logged, or committed.
 - [ ] The pull request is small enough to review in one sitting.
+
+## Related issues
+
+-
