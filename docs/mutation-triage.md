@@ -1,8 +1,8 @@
 # Mutation triage log
 
-Tracked log of `LIVED` mutants, per ADR-0007. A mutant that survives is either
-killed by a new test or recorded here as equivalent, with a reason and a
-reviewer. No blanket exclusions.
+This file is the canonical home for the mutation gate thresholds and triage
+rules. A mutant that survives is either killed by a new test or recorded here as
+equivalent, with a reason and a reviewer. No blanket exclusions.
 
 ## Rules
 
@@ -12,7 +12,7 @@ reviewer. No blanket exclusions.
   the name of the reviewer who accepted it. "Hard to test" is not a reason.
 - The log covers the full module. The weekly run and the per-PR diff run both
   feed it.
-- Thresholds: 70% efficacy and 60% mutant coverage (ADR-0007).
+- Thresholds: 70% efficacy and 60% mutant coverage now; 80% mutant coverage is the target. The values are enforced by `scripts/mutation.sh`.
 
 ## Baseline, 2026-11-06
 

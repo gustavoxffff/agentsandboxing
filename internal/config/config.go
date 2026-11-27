@@ -40,7 +40,7 @@ const (
 // minimalGitKeys are the keys copied in minimal mode.
 var minimalGitKeys = []string{"user.name", "user.email", "init.defaultBranch"}
 
-// BaseEnvAllow is the closed base allowlist of v1 (RFC-0001 §5.4). HOME and
+// BaseEnvAllow is the closed base allowlist of v1 (see docs/asb.md). HOME and
 // the proxy variables are set by the tool, not inherited.
 var BaseEnvAllow = []string{
 	"PATH", "TERM", "LANG", "LC_ALL", "TZ", "USER", "LOGNAME", "SHELL",

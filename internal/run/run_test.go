@@ -99,8 +99,8 @@ func TestPrintConfigDoesNotLeakValues(t *testing.T) {
 
 // TestExecuteDoesNotWriteGitconfigWhenNoMatchingKeys verifies that when
 // [git] mode is not off but no keys match the host .gitconfig, no .gitconfig
-// file is written to the sandbox state dir (ADR-0001: host .gitconfig never
-// mounted; only generated when there are keys to copy).
+// file is written to the sandbox state dir. The host .gitconfig is never
+// mounted; the generated file exists only when there are keys to copy).
 func TestExecuteDoesNotWriteGitconfigWhenNoMatchingKeys(t *testing.T) {
 	project := t.TempDir()
 	t.Setenv("XDG_STATE_HOME", t.TempDir())
@@ -157,7 +157,7 @@ func TestExecuteDoesNotWriteGitconfigWhenNoMatchingKeys(t *testing.T) {
 }
 
 // TestPrintConfigBranches asserts every conditional branch of PrintConfig so
-// that negating any of them changes the output (mutation gate, ADR-0007).
+// that negating any of them changes the output (mutation gate).
 func TestPrintConfigBranches(t *testing.T) {
 	layout := sandbox.Layout{
 		ID:               "proj-1",

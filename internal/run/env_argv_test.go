@@ -8,8 +8,8 @@ import (
 	"testing"
 )
 
-// TestExecuteKeepsSecretsOutOfBwrapArgv is the regression test for RFC-0001
-// §5.4: values from env.allow must never reach the bwrap argv.
+// TestExecuteKeepsSecretsOutOfBwrapArgv is the regression test for the
+// env-file delivery: values from env.allow must never reach the bwrap argv.
 func TestExecuteKeepsSecretsOutOfBwrapArgv(t *testing.T) {
 	project := t.TempDir()
 	cfg := "version = 1\n\n[network]\nprofile = \"none\"\n\n[env]\nallow = [\"PATH\", \"GITHUB_TOKEN\"]\n"

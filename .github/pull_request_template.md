@@ -2,10 +2,10 @@
 
 What changes and why. Link the issue if one exists.
 
-## RFC/ADR
+## SPEC
 
-- RFC:
-- ADR:
+- Spec:
+- Issue:
 
 ## Tests
 
@@ -31,18 +31,22 @@ If the test file changed after the red run, repeat the red run.
 - `LIVED` triage:
 - Report path:
 
-For docs-only or CI-only changes, record why mutation testing was skipped.
+Mutation testing runs on every PR. If the diff changes only comments/docs and no executable Go logic, record that no mutants were generated.
 
 ## Docs and links
 
 - [ ] Documentation updated.
 - [ ] Relative links resolve.
-- [ ] No accepted ADR was edited semantically.
+- [ ] No accepted spec was edited semantically.
 - [ ] New content is English.
 
 ## Checklist
 
-- [ ] The change implements the linked RFC/ADR and nothing unrelated.
-- [ ] Every task maps to an ADR decision or an RFC acceptance criterion.
+- [ ] The change implements the linked spec and nothing unrelated.
+- [ ] Every task maps to a spec acceptance criterion.
 - [ ] No secret is printed, logged, or committed.
 - [ ] The pull request is small enough to review in one sitting.
+
+## Related issues
+
+-

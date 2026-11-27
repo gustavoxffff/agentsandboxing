@@ -5,6 +5,7 @@
 - **Deciders:** Gustavo
 - **RFC:** [RFC-0002](../rfc/0002-engineering-process-baseline.md)
 - **Supersedes / Related:** [ADR-0001](0001-sandbox-opencode-com-bwrap.md), [ADR-0002](0002-per-sandbox-state-and-credentials.md), [ADR-0003](0003-pinned-skills-and-snapshot.md), [ADR-0004](0004-quality-gate-hooks.md); retrofit: ADR-0002..0004 link to RFC-0001
+- **Superseded by:** ADR-0010
 
 ## Context
 
@@ -54,3 +55,4 @@ The retrofit is intentionally light: ADR-0002..0004 get a link to RFC-0001 as th
 | 2026-11-01 | Initial draft | Workflow change requested; no existing process ADR |
 | 2026-11-01 | Grill: every ADR requires an RFC; semantic freeze; no partial acceptance; light retrofit; templates + checklist + light CI; size guideline ~100 lines | Answers from the grill |
 | 2026-11-16 | Status → Accepted; linked to RFC-0002 which is Accepted | RFC-0002 feedback deadline of 2026-11-15 passed with no blocking question; ADR accepted and frozen |
+| 2026-11-19 | Superseded by ADR-0010: acceptance now requires zero open questions; the rest of this decision remains unchanged | RFC-0004; ADR-0010 |

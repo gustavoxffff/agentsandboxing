@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Mutation gate per ADR-0007.
+# Mutation gate for changed Go code.
 #
 #   scripts/mutation.sh --diff <git-ref>   # changed Go code, per pull request
 #   scripts/mutation.sh --full             # whole module, weekly

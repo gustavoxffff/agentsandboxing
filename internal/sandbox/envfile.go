@@ -13,7 +13,7 @@ import (
 
 // WriteEnvFile writes KEY=VALUE entries as NUL-separated records to path with
 // mode 0600. The file is consumed by `asb exec`, which removes it before
-// running the command, so values never reach the bwrap argv (RFC-0001 §5.4).
+// running the command, so values never reach the bwrap argv (see docs/asb.md).
 func WriteEnvFile(path string, env []string) error {
 	if path == "" {
 		return errors.New("env file path is empty")

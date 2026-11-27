@@ -31,24 +31,39 @@ check_links() {
   done < <(grep -oE '\]\([^)]+\)' "$file" | sed 's/^](//; s/)$//')
 }
 
-check_supersession() {
+require_metadata() {
+  local file="$1"
+  local pattern="$2"
+  local name="$3"
+  if ! grep -qE "$pattern" "$file"; then
+    printf 'missing metadata: %s: %s\n' "$file" "$name" >&2
+    fail=1
+  fi
+}
+
+check_spec_supersession() {
   local file="$1"
   local target num old newnum
   newnum="$(basename "$file" | grep -oE '^[0-9]{4}')"
   while IFS= read -r target; do
-    num="$(printf '%s' "$target" | grep -oE 'ADR-[0-9]{4}' | head -n1)"
-    [ -z "$num" ] && continue
-    old="$(find ./docs/adr -maxdepth 1 -name "${num#ADR-}-*.md" | head -n1)"
-    if [ -z "$old" ]; then
-      printf 'missing superseded ADR: %s -> %s\n' "$file" "$num" >&2
-      fail=1
-      continue
-    fi
-    if ! grep -qE "^- \*\*Superseded by:\*\* ADR-${newnum}([^0-9]|$)" "$old"; then
-      printf 'missing back-reference: %s -> ADR-%s\n' "$old" "$newnum" >&2
-      fail=1
-    fi
-  done < <(grep -E '^- \*\*Supersedes:\*\* ' "$file" || true)
+    while IFS= read -r num; do
+      [ -z "$num" ] && continue
+      old="$(find ./docs/spec -maxdepth 1 -name "${num#SPEC-}-*.md" | head -n1)"
+      if [ -z "$old" ]; then
+        printf 'missing superseded spec: %s -> %s\n' "$file" "$num" >&2
+        fail=1
+        continue
+      fi
+      if ! grep -qE '^- Status: Superseded$' "$old"; then
+        printf 'superseded spec is not marked Superseded: %s -> %s\n' "$old" "$num" >&2
+        fail=1
+      fi
+      if ! grep -qE "SPEC-${newnum}([^0-9]|$)" "$old"; then
+        printf 'missing back-reference: %s -> SPEC-%s\n' "$old" "$newnum" >&2
+        fail=1
+      fi
+    done < <(printf '%s\n' "$target" | grep -oE 'SPEC-[0-9]{4}' || true)
+  done < <(grep -E '^- Supersedes: ' "$file" || true)
 }
 
 check_metadata() {
@@ -57,47 +72,29 @@ check_metadata() {
   base="$(basename "$file")"
 
   case "$base" in
-    TEMPLATE.md) return 0 ;;
+    TEMPLATE.md|README.md) return 0 ;;
+  esac
+  case "$base" in
+    [0-9][0-9][0-9][0-9]-*.md) ;;
+    *) return 0 ;;
   esac
   case "$file" in
-    ./docs/adr/*|./docs/rfc/*) ;;
+    ./docs/spec/*) ;;
     *) return 0 ;;
   esac
 
   files=$((files + 1))
 
-  if ! grep -qE '^- \*\*Status:\*\* ' "$file"; then
-    printf 'missing metadata: %s: Status\n' "$file" >&2
+  if ! grep -qE '^- Status: (Draft|In review|Accepted|Superseded)$' "$file"; then
+    printf 'missing or invalid metadata: %s: Status\n' "$file" >&2
     fail=1
   fi
-  if ! grep -qE '^- \*\*Date:\*\* ' "$file"; then
-    printf 'missing metadata: %s: Date\n' "$file" >&2
-    fail=1
-  fi
-
-  case "$file" in
-    ./docs/adr/*)
-      if ! grep -qE '^- \*\*Deciders:\*\* ' "$file"; then
-        printf 'missing metadata: %s: Deciders\n' "$file" >&2
-        fail=1
-      fi
-      if ! grep -qE '^- \*\*RFC:\*\* \[RFC-[0-9]{4}\]\([^)]+\)' "$file"; then
-        printf 'missing metadata: %s: RFC link\n' "$file" >&2
-        fail=1
-      fi
-      if ! grep -qE '^- \*\*(Supersedes / Related|Supersedes):\*\* ' "$file"; then
-        printf 'missing metadata: %s: Supersedes\n' "$file" >&2
-        fail=1
-      fi
-      check_supersession "$file"
-      ;;
-    ./docs/rfc/*)
-      if ! grep -qE '^- \*\*Feedback deadline:\*\* ' "$file"; then
-        printf 'missing metadata: %s: Feedback deadline\n' "$file" >&2
-        fail=1
-      fi
-      ;;
-  esac
+  require_metadata "$file" '^- Date: ' Date
+  require_metadata "$file" '^- Owner: ' Owner
+  require_metadata "$file" '^- Issue: ' Issue
+  require_metadata "$file" '^- Supersedes: ' Supersedes
+  require_metadata "$file" '^- Feedback deadline: ' 'Feedback deadline'
+  check_spec_supersession "$file"
 }
 
 while IFS= read -r file; do
