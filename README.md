@@ -45,9 +45,8 @@ go build -o /tmp/asb ./cmd/asb
 ASB=/tmp/asb scripts/matrix.sh
 ```
 
-Full documentation: [docs/asb.md](docs/asb.md). Decision and scope:
-[ADR-0001](docs/adr/0001-sandbox-opencode-com-bwrap.md) and
-[RFC-0001](docs/rfc/0001-configurable-sandbox-for-agents.md).
+Full documentation: [docs/asb.md](docs/asb.md). Decision process:
+[docs/spec/README.md](docs/spec/README.md).
 
 ## Contributing
 

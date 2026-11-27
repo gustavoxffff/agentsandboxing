@@ -14,8 +14,9 @@ Agent entrypoint for this repository. Read this first, then follow the links for
 - `scripts/check-docs.sh` — documentation link and metadata check.
 - `docs/asb.md` — product reference.
 - `docs/code-style.md` — canonical code style.
-- `docs/adr/` — decisions (accepted ADRs are frozen).
-- `docs/rfc/` — initiative proposals.
+- `docs/spec/` — active specs (accepted specs are frozen).
+- `docs/spec/README.md` — how to open an issue and write a spec.
+- `docs/deprecated/` — historical RFCs and ADRs; not normative.
 - `docs/README.md` — documentation index.
 - `CONTRIBUTING.md` — canonical contribution workflow.
 
@@ -50,27 +51,27 @@ printed string. Record surviving mutants in `docs/mutation-triage.md`.
 - In `allowlist` mode, direct egress stays blocked; traffic goes through the proxy.
 - Secrets are delivered only through the env allowlist. Never print, log, or commit them.
 - New documentation, code, comments, identifiers, CLI strings, tests, commit messages, PR/issue titles, and branch names are English.
-- Every ADR links to exactly one RFC. Accepted ADRs are semantically frozen; a changed decision needs a new ADR with `Supersedes`.
+- Every accepted spec is semantically frozen; a changed decision needs a new spec with `Supersedes`.
 
 ## Process
 
-1. A new initiative starts with an RFC in `docs/rfc/` (problem, options, criteria, open questions; no final decision).
-2. A decision becomes an ADR in `docs/adr/` (decision and consequences only; link the RFC for trade-offs).
-3. Grill the decision one question at a time; verify claims against the code before asking.
-4. Accept only when no blocking open question remains; never accept partially.
-5. Implement only accepted ADRs. If the code contradicts one, stop and propose a superseding ADR.
+1. Open a GitHub issue for the initiative; it is the execution tracker and update channel.
+2. Create a spec in `docs/spec/` from `docs/spec/TEMPLATE.md`; link the issue and keep `Status: Draft`.
+3. Debate in `Options considered`; grill one question at a time and verify claims against the code before asking.
+4. At the feedback deadline, accept only when no blocking question remains and every `TODO` item is done or moved to `Backlog`; then fill `Decision` and `Consequences`.
+5. Implement only accepted specs. If the code contradicts one, stop and propose a superseding spec.
 
 ## Testing and evidence
 
 - Every bug fix and security fix needs a regression test: red run, SHA-256 of the test file at red time, then green run.
-- Changed Go code needs the mutation gate: 70% efficacy and 60% mutant coverage initially, 80% mutant coverage target. Triage every `LIVED` mutant.
+- Changed Go code needs the mutation gate; thresholds and triage rules live in `docs/mutation-triage.md`.
 - Docs-only and CI-only changes may skip mutation testing; record the reason in the PR.
 
 ## Stop conditions
 
 Stop and ask the user when:
 
-- An accepted ADR would need a semantic edit.
+- An accepted spec would need a semantic edit.
 - The code contradicts an accepted decision.
 - A blocking open question remains at acceptance time.
 - A number, date, owner, threshold, or deadline is unknown.
@@ -78,4 +79,4 @@ Stop and ask the user when:
 
 ## Where the rules live
 
-`CONTRIBUTING.md` owns the workflow; `docs/code-style.md` owns style; ADRs own decisions; RFCs own proposals. When documents disagree, an accepted ADR or RFC decision wins over a contributing/style rule, which wins over a descriptive document such as `README.md` or `docs/asb.md`.
+`CONTRIBUTING.md` owns the workflow; `docs/code-style.md` owns style; specs own decisions; `docs/spec/README.md` owns the spec process. When documents disagree, an accepted spec wins over a contributing/style rule, which wins over a descriptive document such as `README.md` or `docs/asb.md`. Historical RFCs and ADRs are not normative.

@@ -93,7 +93,7 @@ func Execute(o Options) (int, error) {
 
 	// Generate the sandbox .gitconfig from the host file, based on [git] mode.
 	// The file is written to the host state dir and bind-mounted read-only
-	// inside the sandbox (ADR-0001: host ~/.gitconfig is never mounted).
+	// inside the sandbox. The host ~/.gitconfig is never mounted.
 	if cfg.GitMode != config.GitModeOff {
 		home, err := os.UserHomeDir()
 		if err != nil {

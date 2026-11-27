@@ -15,12 +15,12 @@ state per sandbox.
 
 Phases 1 and 2 are implemented: CLI/config, `host`/`none` profiles, XDG per
 sandbox, `--clearenv`/`--standalone`, and the `allowlist` proxy/bridge. The
-legacy `opencode-sandbox` wrapper was removed on 2026-11-03 (ADR-0001):
-`asb run` is the only entry point. The local matrix passed on `bwrap
+legacy `opencode-sandbox` wrapper was removed on 2026-11-03: `asb run` is the
+only entry point. The local matrix passed on `bwrap
 0.13.1`/WSL (curl, git, Node, metadata, rebinding, QUIC, direct IP,
 tun/mknod/caps). npm/pip were not installed on the local host and were
 covered by CI, which installs the toolchains and runs the same matrix.
-**`allowlist` remains conditioned on green CI** (the RFC-0001 §5.3 gate).
+**`allowlist` remains conditioned on green CI** (the allowlist gate).
 
 ## Configuration
 
@@ -44,6 +44,13 @@ allow = [               # only with profile = "allowlist"
 [env]
 allow = ["PATH", "TERM", "LANG", "LC_ALL", "TZ", "USER", "LOGNAME", "SHELL"]
 from_file = ".asb.env"  # optional, 0600, in .gitignore
+
+[git]
+mode = "minimal"        # minimal | manual | off
+keys = [                # only with mode = "manual"
+  "user.name",
+  "user.email",
+]
 ```
 
 Precedence: **CLI flag > `asb.toml` > global config > no default**.
@@ -60,6 +67,15 @@ profile at any level, `asb` fails.
 - `env.from_file`: one `VAR=value` per line, `#` for comments, permission
   `0600`, inside the project and covered by `.gitignore`. Values are never
   printed.
+- `git.mode` (default `minimal`):
+  - `minimal`: generates a `.gitconfig` with `user.name`, `user.email`, and
+    `init.defaultBranch` copied from the host `~/.gitconfig`.
+  - `manual`: copies only the keys listed in `git.keys` (each as `section.key`,
+    e.g. `user.name`).
+  - `off`: generates no `.gitconfig`.
+  The host `~/.gitconfig` is never mounted whole; the generated file is
+  bind-mounted read-only at `$HOME/.gitconfig` inside the sandbox.
+- `git.keys`: required when `mode = "manual"`; ignored otherwise.
 
 ## State and environment
 
@@ -75,7 +91,9 @@ profile at any level, `asb` fails.
   `~/.local/state/opencode`, `~/.cache/opencode`, or `opencode.db`.
 - The provider login is done once per sandbox (state is persistent).
 - The project is mounted read/write; `/usr`, `/etc`, `/bin`, `/sbin`, `/lib`,
-  `/lib64`, and `~/.gitconfig` (if it exists) are read-only.
+  `/lib64` are read-only. The host `~/.gitconfig` is **not** mounted; a
+  generated `.gitconfig` is bind-mounted read-only at `$HOME/.gitconfig`
+  according to `[git] mode`.
 - `--clearenv` in `bwrap`: only declared variables enter.
 - Values from `env.allow` and `from_file` are written to an ephemeral `0600`
   env file. `asb exec` reads the file, removes it, and then starts the command;

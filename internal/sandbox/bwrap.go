@@ -89,7 +89,7 @@ func BuildArgs(o Options) ([]string, error) {
 
 	// Git config: never mount the host ~/.gitconfig. When git.mode is not
 	// off, a generated .gitconfig is bind-mounted read-only at $HOME inside
-	// the sandbox (ADR-0001: minimal copies user.name/user.email/
+	// the sandbox (minimal copies user.name/user.email/
 	// init.defaultBranch; manual copies only git.keys; off generates none).
 	if o.GitMode != config.GitModeOff && o.Layout.HostGitConfig != "" && o.Layout.InsideGitConfig != "" && fileExists(o.Layout.HostGitConfig) {
 		args = append(args, "--ro-bind", o.Layout.HostGitConfig, o.Layout.InsideGitConfig)
@@ -144,7 +144,7 @@ func BuildArgs(o Options) ([]string, error) {
 	}
 
 	// Closed environment: --setenv carries only the variables the tool owns.
-	// Values from env.allow/from_file travel in the env file (RFC-0001 §5.4).
+	// Values from env.allow/from_file travel in the env file (see docs/asb.md).
 	args = append(args, "--clearenv")
 	env := append([]string(nil), o.Env...)
 	sort.Strings(env)

@@ -57,6 +57,7 @@ Go code in `cmd/` and `internal/`, shell scripts in `scripts/`, and documentatio
 ## Documentation
 
 - New and updated documentation is English.
+- New decisions use a spec in `docs/spec/`; do not add RFCs or ADRs.
 - Link to the canonical document instead of copying a rule.
 - Use relative links inside the repository.
 - Run `./scripts/check-docs.sh` before opening a pull request.
@@ -65,7 +66,7 @@ Go code in `cmd/` and `internal/`, shell scripts in `scripts/`, and documentatio
 
 - Commit messages are English and imperative: `Add allowlist regression test`.
 - One logical change per commit and per pull request.
-- Reference the RFC or ADR when the change implements a decision.
+- Reference the spec when the change implements a decision.
 - Keep pull requests small enough to review in one sitting.
 
 ## Not enforced by tooling

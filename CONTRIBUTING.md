@@ -36,16 +36,16 @@ The same checks run in CI. The escape matrix needs the dependencies listed above
 - Branch from `main` with a short slug: `feat/...`, `fix/...`, `docs/...`, or `chore/...`.
 - Keep one logical change per branch and per pull request.
 - Write commit messages in English, in the imperative mood.
-- Reference the RFC or ADR when the change implements a decision.
+- Reference the spec when the change implements a decision.
 
 ## Pull requests
 
 Use `.github/pull_request_template.md`. A pull request should:
 
-- Link the RFC or ADR it implements.
+- Link the spec it implements.
 - Include tests for the change.
 - Include regression evidence for every bug fix or security fix.
-- Include mutation evidence for Go changes, or the reason it was skipped.
+- Include mutation evidence for Go changes, or the reason it was skipped. Thresholds and triage rules are in [`docs/mutation-triage.md`](docs/mutation-triage.md).
 - Record surviving mutants in [`docs/mutation-triage.md`](docs/mutation-triage.md).
 - Update documentation and links.
 - Contain no new Portuguese content.
@@ -54,15 +54,16 @@ Keep the diff focused. Put unrelated improvements in a separate pull request.
 
 ## Decisions and process
 
-The process is defined by ADR-0005 and RFC-0002:
+The process is defined by [`docs/spec/README.md`](docs/spec/README.md):
 
-1. A new initiative starts with an RFC in `docs/rfc/`.
-2. A decision is recorded as an ADR in `docs/adr/`, linked to exactly one RFC.
-3. The decision is grilled before acceptance.
-4. At the feedback deadline, the RFC is accepted, extended, rejected, or withdrawn. It is never accepted with a blocking open question.
-5. Accepted ADRs are semantically frozen. A changed decision becomes a new ADR with `Supersedes`; the old ADR gets `Superseded by`.
+1. Open a GitHub issue for the initiative. The issue is the execution tracker and update channel; the spec is the decision record.
+2. Create a spec in `docs/spec/` from `docs/spec/TEMPLATE.md`. Number it with the highest existing number plus one and link the issue in `Issue:`.
+3. Keep `Status: Draft` while the options are being written. The debate lives in `Options considered`; leave `Decision` and `Consequences` empty.
+4. When the options are ready, set `Status: In review` and announce the feedback deadline in the issue. Grill one question at a time and verify claims against the code before asking.
+5. At the feedback deadline, accept only when no blocking question remains and every `TODO` item is done or moved to `Backlog`. Fill `Decision` and `Consequences`, set `Status: Accepted`, and close the issue after implementation.
+6. Accepted specs are semantically frozen. A changed decision becomes a new spec with `Supersedes`; the old spec gets `Status: Superseded` and a `Revisions` row naming the replacement.
 
-Templates: `docs/rfc/TEMPLATE.md` and `docs/adr/TEMPLATE.md`.
+Template: [`docs/spec/TEMPLATE.md`](docs/spec/TEMPLATE.md). Historical RFCs and ADRs are archived in [`docs/deprecated/`](docs/deprecated/) and are not normative.
 
 ## Code style
 
@@ -82,15 +83,15 @@ If the test file changes after the red run, repeat the red run.
 
 ## Review
 
-- Review against the linked RFC/ADR and the acceptance criteria.
-- Check that no accepted ADR was edited semantically.
+- Review against the linked spec and the acceptance criteria.
+- Check that no accepted spec was edited semantically.
 - Check that new content is English.
 - Check the evidence in the pull request, not only the final test result.
 - Resolve review conversations before merging.
 
 ## Precedence
 
-When documents disagree: an accepted ADR or RFC decision wins over a contributing or style rule, which wins over a descriptive document such as `README.md` or `docs/asb.md`. Fix the lower document; never edit an accepted ADR to match it.
+When documents disagree: an accepted spec wins over a contributing or style rule, which wins over a descriptive document such as `README.md` or `docs/asb.md`. Fix the lower document; never edit an accepted spec to match it. Historical RFCs and ADRs are not normative.
 
 ## Documentation index
 
